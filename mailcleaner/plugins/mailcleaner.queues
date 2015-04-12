@@ -1,0 +1,13 @@
+#!/bin/bash
+if [ -d /var/mailcleaner/log ]; then
+	echo "<<<mailcleaner.queues>>>"
+
+	echo "mailscanner_queue_size Mailscanner $(		tail -n 1000 /var/mailcleaner/log/mailscanner/infolog				|  \
+									grep -E 'MailScanner\[[0-9]+\]: New Batch: Found [0-9]+ messages waiting'  	|  \
+									tail -n 1									|  \
+									awk '{print $9}')"
+
+	echo "exim_stage1_queue_size Exim-Stage1 $(find /var/mailcleaner/spool/exim_stage1/msglog -type f| wc -l)"
+	echo "exim_stage2_queue_size Exim-Stage2 $(find /var/mailcleaner/spool/exim_stage2/input  -type f| wc -l)"
+	echo "exim_stage4_queue_size Exim-Stage4 $(find /var/mailcleaner/spool/exim_stage4/msglog -type f| wc -l)"
+fi

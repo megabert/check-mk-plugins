@@ -1,0 +1,56 @@
+def inventory_mailcleaner_queues(info):
+
+   inventory = []
+   for line in info:
+
+      if line[0] == "mailscanner_queue_size":
+          inventory.append( ( line[1], None ) )
+
+      if line[0] == "exim_stage1_queue_size":
+          inventory.append( ( line[1], None ) )
+
+      if line[0] == "exim_stage2_queue_size":
+          inventory.append( ( line[1], None ) )
+
+      if line[0] == "exim_stage4_queue_size":
+          inventory.append( ( line[1], None ) )
+
+   return inventory
+
+def check_mailcleaner_queues(item, params, info):
+	limit={}
+	limit['Exim-Stage1']={}
+	limit['Exim-Stage1']['warn']=50
+	limit['Exim-Stage1']['crit']=100
+	limit['Exim-Stage2']={}
+	limit['Exim-Stage2']['warn']=50
+	limit['Exim-Stage2']['crit']=100
+	limit['Exim-Stage4']={}
+	limit['Exim-Stage4']['warn']=2000
+	limit['Exim-Stage4']['crit']=2000
+	limit['Mailscanner']={}
+	limit['Mailscanner']['warn']=50
+	limit['Mailscanner']['crit']=100
+
+	for line in info:	
+      		if line[1] == item:
+			if int(line[2]) < limit[item]['warn']:
+				return (0, "OK - %s Mails in Queue" % line[2],
+						[ ( "QueueSize", line[2], limit[item]['warn'],limit[item]['crit'] ) ] )
+
+			if int(line[2]) < limit[item]['crit']:
+				return (1, "WARN - %s Mails in Queue" % line[2],
+                                                [ ( "QueueSize", line[2], limit[item]['warn'],limit[item]['crit'] ) ] )
+
+			return (2, "CRIT - %s Mails in Queue" % line[2],
+                                                [ ( "QueueSize", line[2], limit[item]['warn'],limit[item]['crit'] ) ] )
+		
+	return [3, "Unknown Error"]
+
+check_info["mailcleaner.queues"] = {
+    'check_function':            check_mailcleaner_queues,
+    'inventory_function':        inventory_mailcleaner_queues,
+    'service_description':       'MAILQUEUE %s',
+    'has_perfdata':		 True,
+}
+
