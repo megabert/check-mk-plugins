@@ -1,0 +1,10 @@
+#!/bin/sh
+echo '<<<chrony>>>'
+CHRONYC=/usr/bin/chronyc
+if [ -x $CHRONYC ] ; then
+	if ps x | grep -qE chrony[d]; then
+		$CHRONYC tracking
+	else
+		echo "ERROR-CHRONY-NOT-RUNNING"
+	fi
+fi

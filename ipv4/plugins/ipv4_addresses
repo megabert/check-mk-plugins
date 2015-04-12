@@ -1,0 +1,15 @@
+#!/bin/bash
+
+IP_REGEX="([1-9][0-9]{0,2}\.){3}[1-9][0-9]{0,2}"
+echo "<<<ipv4>>>"
+if which ifconfig >/dev/null ;then 
+	IP_ADDRESSES=$(ifconfig | grep "inet addr"| grep -v 127.0.0.1 |sed -re "s/^.*inet addr:($IP_REGEX)[^0-9].*$/\1/")
+	for IP in $IP_ADDRESSES ; do
+		echo IP $IP
+	done
+elif which ip >/dev/null ; then
+	IP_ADDRESSES=$(ip a| grep "inet "| grep -v 127.0.0.1| sed -re "s/^.*inet ($IP_REGEX)[^0-9].*/\1/")
+	for IP in $IP_ADDRESSES ; do
+		echo IP $IP
+	done
+fi

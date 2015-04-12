@@ -1,0 +1,23 @@
+def inventory_ipv4_addresses(info):
+
+   inventory = []
+
+   for line in info:
+      if line[0] == "IP":
+          inventory.append( (line[1], None))
+   return inventory
+
+def check_ipv4_addresses(item, params, info):
+	
+	for line in info:
+		if line[1] == item:
+			return(0, "")
+	return [2, "IP Address not found"]
+
+check_info["ipv4.addresses"] = {
+    'check_function':            check_ipv4_addresses,
+    'inventory_function':        inventory_ipv4_addresses,
+    'service_description':       'IPv4 ',
+    'has_perfdata':              False,
+}
+

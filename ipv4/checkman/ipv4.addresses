@@ -1,0 +1,15 @@
+title: Inventory for assigned IPv4 Adresses
+agents: linux
+author: Tobias Unsleber <tu@inline.de>
+license: GPL
+distribution: http://www.megabert.de/
+description:
+	Checks the existence of previously assigned 
+	IPv4 Adresses. Every Address get's its own 
+	check. If an ip is missing, you get a failed 
+	check. 
+
+inventory:
+ One check for each assigned IPv4 Address
+perfdata: 
+ No perfdata
