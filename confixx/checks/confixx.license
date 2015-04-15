@@ -1,0 +1,22 @@
+def inventory_confixx_licence(info):
+
+   inventory = []
+
+   for line in info:
+      if line[0] == "LICENCE":
+          inventory.append( (None, None))
+   return inventory
+
+def check_confixx_licence(item, params, info):
+
+        for line in info:
+                if line[1] == "VALID":
+                        return(0, "Licence OK")
+        return (2, "Possible License Error: " % ( line ) )
+
+check_info["confixx.license"] = {
+    'check_function':            check_confixx_licence,
+    'inventory_function':        inventory_confixx_licence,
+    'service_description':       'Confixx Licence ',
+    'has_perfdata':              False,
+}

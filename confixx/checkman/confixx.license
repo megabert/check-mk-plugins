@@ -1,0 +1,14 @@
+title: Check if confixx License is valid
+agents: linux
+author: Tobias Unsleber <tu@inline.de>
+license: GPL
+distribution: http://www.megabert.de/
+description:
+	Checks if the confixx license is still valid.
+	Connects with a low privilege user to the confixx
+	Database and checks the needed attribute.
+
+inventory:
+ 1 Check for 1 Host.
+perfdata: 
+ No perfdata

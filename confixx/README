@@ -1,0 +1,17 @@
+confixx License Checker Plugin
+------------------------------
+
+This plugin connects to the confixx-mysql Database
+and checks if the attribute for the license show
+a correct set up license.
+
+Installation
+
+Set up a user, which has select permissions
+on the confixx table "register". Confixx-DB
+Name "confixx" assumed.
+
+mysql -uroot -p.... -Dconfixx
+> grant select on confixx.register to 'licence_manager'@'localhost' identified by 'your-password-here';
+> flush privileges;
+

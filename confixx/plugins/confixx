@@ -1,0 +1,16 @@
+#!/bin/bash
+
+DB=confixx
+DBUSER=licence_manager
+DBPASS=yourverysecuremysqlpassword
+
+RESULT=$(echo "select hinweis from register;"| mysql -u$DBUSER -p$DBPASS -D$DB -B --skip-column-names 2>/dev/null | sed -re 's/^(.*\|\|)?([a-z_]*)$/\2/')
+
+if [ -n "$RESULT" ]; then
+        echo "<<<confixx>>>"
+        if [ "$RESULT" == "scripts_licence_valid" ] ; then
+                echo LICENCE VALID
+        else
+                echo LICENCE ERROR $RESULT
+        fi
+fi
