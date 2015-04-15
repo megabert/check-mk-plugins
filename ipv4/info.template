@@ -1,6 +1,6 @@
 {'author': 'Tobias Unsleber <tu@inline.de>',
  'description': 'Check if previously assigned IPv4 addresses are still configured',
- 'download_url': 'http://exchange.check-mk.org/',
+ 'download_url': 'http://www.megabert.de/',
  'files': {'agents': ['plugins/ipv4_addresses'],
            'checkman': ['ipv4.addresses'],
            'checks': ['ipv4.addresses'],

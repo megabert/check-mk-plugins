@@ -1,6 +1,6 @@
 {'author': 'Tobias Unsleber (tu@inline.de)',
  'description': 'Prueft die Queues von Mailcleaner(www.mailcleaner.org)',
- 'download_url': 'http://exchange.check-mk.org/',
+ 'download_url': 'http://www.megabert.de/',
  'files': {'agents': ['plugins/mailcleaner.queues'],
            'checkman': [],
            'checks': ['mailcleaner.queues'],
