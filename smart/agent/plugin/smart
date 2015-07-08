@@ -66,6 +66,21 @@ megaraid_info()
        done
 }
 
+
+function get_3ware_smart_data () {
+	
+	      disk_index=$1
+	controller_index=$2
+	 controller_name=$3
+	       disk_type=$4
+	      disk_model=$5
+	     disk_serial=$6
+
+	 smartctl -A -d 3ware,$disk_index /dev/tw?$controller_index | grep Always \
+                                                | egrep -v '^190(.*)Temperature(.*)' | sed "s|^|3ware/$controller_name/p$disk_index $disk_type ${disk_model}_${disk_serial} |"
+
+}
+
 # This will be called on LSI/AMCC-3ware raidcontrollers and accesses
 # the SMART data of SATA disks attached to a SAS Raid HBA 
 
@@ -96,15 +111,18 @@ function lsi_info () {
 				continue
 			else
 				if [ "$type" = "SATA" ] ; then
-					smartctl -A -d 3ware,$disk /dev/tw?$c_num | grep Always \
-						| egrep -v '^190(.*)Temperature(.*)' | sed "s|^|3ware/$controller/p$disk $type ${MODEL}_${SERIAL} |"
+					get_3ware_smart_data $disk $c_num $controller $type $MODEL $SERIAL
 				
 				# Some tw_cli version dont show type SATA in output, so check if smart data blob is existent in tw_cli /controller/disk show all
 				else if tw_cli /$controller/p$disk show all | grep -qi "Drive SMART Data" ; then
-					smartctl -A -d 3ware,$disk /dev/tw?$c_num | grep Always \
-						| egrep -v '^190(.*)Temperature(.*)' | sed "s|^|3ware/$controller/p$disk $type ${MODEL}_${SERIAL} |"
+					get_3ware_smart_data $disk $c_num $controller "UNKNOWN" $MODEL $SERIAL
 				
-					fi
+				     else
+					# Some older 3ware Controllers (like 8006 LP) dont show drive smart data, but 
+					# Smart is nonetheless supported via smartctl, so just try, maybe it works
+					# Code could be simpler, but this makes it more clear
+					get_3ware_smart_data $disk $c_num $controller "UNKNOWN" $MODEL $SERIAL
+				     fi
 				fi
 			fi
 		done
