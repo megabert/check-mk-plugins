@@ -113,16 +113,11 @@ function lsi_info () {
 				if [ "$type" = "SATA" ] ; then
 					get_3ware_smart_data $disk $c_num $controller $type $MODEL $SERIAL
 				
-				# Some tw_cli version dont show type SATA in output, so check if smart data blob is existent in tw_cli /controller/disk show all
-				else if tw_cli /$controller/p$disk show all | grep -qi "Drive SMART Data" ; then
+				# Some tw_cli version dont show type SATA in output, one could check if smart data blob is existent in tw_cli /controller/disk show all
+				# The smart data blob is not always here as well (e. g. with 3ware 8006 LP) so I decided to just try. Maybe smartctl output is there 
+				# maybe not. That should not hurt
+				else 
 					get_3ware_smart_data $disk $c_num $controller "UNKNOWN" $MODEL $SERIAL
-				
-				     else
-					# Some older 3ware Controllers (like 8006 LP) dont show drive smart data, but 
-					# Smart is nonetheless supported via smartctl, so just try, maybe it works
-					# Code could be simpler, but this makes it more clear
-					get_3ware_smart_data $disk $c_num $controller "UNKNOWN" $MODEL $SERIAL
-				     fi
 				fi
 			fi
 		done
