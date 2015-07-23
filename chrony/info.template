@@ -1,4 +1,4 @@
-{'author': 'Tobias Unsleber',
+{'author': 'Megabert',
  'description': 'Monitoring for Chrony/NTP',
  'download_url': 'http://www.megabert.de/',
  'files': {'agents': ['plugins/chrony'],
