@@ -1,4 +1,4 @@
-{'author': 'Tobias Unsleber <tu@inline.de>',
+{'author': 'Megabert',
  'description': 'Check if previously assigned IPv4 addresses are still configured',
  'download_url': 'http://www.megabert.de/',
  'files': {'agents': ['plugins/ipv4_addresses'],
