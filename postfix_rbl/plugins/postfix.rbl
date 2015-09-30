@@ -1,0 +1,157 @@
+#!/bin/bash
+
+#
+#	Author:  Inline Internet Online Dienste GmbH
+#	Web:     www.inline.de
+#
+#	License: GPLv2
+#	http://www.gnu.org/licenses/gpl-2.0.txt
+#
+
+export BLACKLIST_SERVERS="aspews.ext.sorbs.net b.barracudacentral.org bl.blocklist.de bl.spamcop.net zen.spamhaus.org dnsbl.sorbs.net ix.dnsbl.manitu.net"
+
+IP_REGEX="([1-9][0-9]{0,2}\.){3}[1-9][0-9]{0,2}"
+
+export LC_ALL=C
+export LC_LANG=C
+
+function reverse_ip {
+
+	# reverse the values of an ip address.
+	# Note: this function creates a trailing . char
+
+        reverse_ip=""
+        for((i=$#;$i>=1;i--)) {
+                eval reverse_ip=\$reverse_ip\${$i}.
+        }
+}
+
+function _ip_blacklist_check {
+
+	# -- check some majore blacklist services if an ip is listed there as a spam source
+
+        ip="$1"
+        IFS_OLD="$IFS"
+        IFS="."
+        set $ip
+        IFS="$IFS_OLD"
+        reverse_ip $*
+
+        listed_at_servers=""
+        for srv in $BLACKLIST_SERVERS ;do
+                        dnsbl="${reverse_ip}$srv."
+                        set $(host $dnsbl) ; eval res=\${$#}
+
+                        #       The returned ip address from a blacklist of 127.0.0.2 / 127.0.0.3
+                        #       means directly marked as spamming / spam-supporting server
+
+                        if [ "$res" == "127.0.0.2" -o "$res" == "127.0.0.3" ] >/dev/null 2>&1;then
+                                listed_at_servers="$listed_at_servers $srv"
+                        fi
+        done
+        if [ -n "$listed_at_servers" ]; then
+                echo "BLACKLISTCHECK $ip LISTED $listed_at_servers"
+	else
+		echo "BLACKLISTCHECK $ip UNLISTED"
+        fi
+}
+
+function get_all_ipv4_addresses {
+
+	# -- get all ip addresses of a system - by using "ifconfig" or by using "ip"
+
+	get_all_ipv4_addresses=""
+	if which ifconfig >/dev/null ;then
+		IP_ADDRESSES=$(ifconfig | grep "inet addr"| grep -v 127.0.0.1 |sed -re "s/^.*inet addr:($IP_REGEX)[^0-9].*$/\1/")
+		for IP in $IP_ADDRESSES ; do
+			get_all_ipv4_addresses="$get_all_ipv4_addresses $IP"
+		done
+	elif which ip >/dev/null ; then
+		IP_ADDRESSES=$(ip a| grep "inet "| grep -v 127.0.0.1| sed -re "s/^.*inet ($IP_REGEX)[^0-9].*/\1/")
+		for IP in $IP_ADDRESSES ; do
+			get_all_ipv4_addresses="$get_all_ipv4_addresses $IP"
+        done
+	fi
+}
+
+
+function check_postfix_blacklist {
+
+	# -- get postfix smtp_bind_address and initiate p blacklist checks
+
+	# 1. check if a bind address is configured
+	set $(postconf | grep "smtp_bind_address ="); eval ip=\${$#}
+	if [ -n "$ip" -a "$ip" != "=" ];then 
+		BIND_IPS="$ip"
+	else
+		# 2. if no smtp_bind_address -> use all address es with port 25/465/587 listening
+		set $(netstat -nltp | grep -E ":(25|587|465)" | awk '{print $4}' | cut -d: -f1 | sort | uniq)
+		while [ -n "$1" ]; do
+			# 3. if listening address is 0.0.0.0 -> get all available ip4addresses
+			if [ "$1" == "0.0.0.0" ]; then
+				get_all_ipv4_addresses ; BIND_IPS=$get_all_ipv4_addresses
+				break
+			fi
+			BIND_IPS="$BIND_IPS $1"
+			shift
+		done
+	fi
+
+	[ -n "$BIND_IPS" ] 	&& set $BIND_IPS
+	[ -n "$1" ] 		&& echo "<<<postfix>>>"
+	for ip in $* ;do
+		_ip_blacklist_check $ip
+	done
+}
+
+function run_in_intervals {
+
+	# -- run a check in intervals, between the check_runs: show the cached data from the last run
+
+	interval=$1  # -- time in minutes
+	function=$2
+	interval_check_file=/tmp/check_mk_cache_file_$function
+	if [ -r $interval_check_file ]; then
+		now_epoch=$(date +"%s")	
+		file_epoch=$(stat -c "%Y" $interval_check_file)
+		((last_run_before_secs=$now_epoch-$file_epoch))
+		if [ $last_run_before_secs -gt $(($interval*60)) ]; then
+			_run=delayed
+		else
+			: # echo "not starting $function(last run before $last_run_before_secs seconds, run at every $interval minutes)"
+		fi
+
+	else
+		# no file is there -> start a check directly in foreground to have a state
+		_run=now
+	fi
+
+	if [ "$_run" == "delayed" ];then 
+		{
+		# start a check, write to a temp file and move it when ready, so no half status file will be delivered
+		eval $function \>$interval_check_file.tmp
+		mv $interval_check_file.tmp $interval_check_file
+		} >/dev/null 2>&1 &
+	else if [ "$_run" == "now" ];then 
+		{
+		eval $function \>$interval_check_file.tmp
+		mv $interval_check_file.tmp $interval_check_file
+		} >/dev/null 2>&1 
+	     fi
+	fi
+	cat $interval_check_file
+	
+}
+
+# -- main program starts here
+
+if which postconf >/dev/null 2>&1 ; then
+	run_in_intervals 30 check_postfix_blacklist
+fi
+
+# for testing...
+#
+# echo "<<<postfix>>>"
+# echo "BLACKLISTCHECK 1.2.3.4 LISTED zen.spamhaus.org"
+# echo "BLACKLISTCHECK 1.2.3.5 LISTED dnsbl.sorbs.net"
+

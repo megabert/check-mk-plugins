@@ -1,0 +1,15 @@
+title: Postfix Blacklist Check
+agents: linux
+author: Tobias Unsleber <tu@inline.de>
+license: GPL
+distribution: http://www.megabert.de/
+description:
+	Checks if the postfix smtp_bind_address 
+	or if not set all addresses used by post-
+	fix are blacklisted at some major 
+	blacklist-Services
+
+inventory:
+ One Check per Server
+perfdata: 
+ No perfdata

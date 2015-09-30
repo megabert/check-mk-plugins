@@ -1,0 +1,41 @@
+#
+#	Author:  Inline Internet Online Dienste GmbH
+#	Web:     www.inline.de
+#
+#	License: GPLv2
+#	http://www.gnu.org/licenses/gpl-2.0.txt
+#
+
+import re
+
+def inventory_postfix_rbl(info):
+
+   inventory = []
+
+   for line in info:
+      if line[0] == "BLACKLISTCHECK":
+          inventory.append( (None, None))
+   return inventory
+
+def check_postfix_rbl(item, params, info):
+
+        listed=0
+        listings=""
+        for line in info:
+                if(line[2][0:6] == "LISTED"):
+                        listed=1
+                        l = " ".join(line)
+                        t = re.match("BLACKLISTCHECK (.*?)$",l)
+                        if t:
+                                listings=listings+t.group(1)+"\n"
+        if listed:
+                return(2, listings )
+        return(0, "No Listings")
+
+
+check_info["postfix.rbl"] = {
+    'check_function':            check_postfix_rbl,
+    'inventory_function':        inventory_postfix_rbl,
+    'service_description':       'Postfix RBL',
+    'has_perfdata':              False,
+}
