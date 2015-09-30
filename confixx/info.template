@@ -1,4 +1,4 @@
-{'author': 'Tobias Unsleber <tu@inline.de>',
+{'author': 'Megabert',
  'description': 'Check confixx license',
  'download_url': 'http://www.megabert.de/',
  'files': {'agents': ['plugins/confixx'],
