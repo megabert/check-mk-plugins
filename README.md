@@ -16,3 +16,4 @@ check confixx license
 
 ## Postfix Blacklist Check
 Check if the sending ip (if absent all listening addresses) are blacklisted at a blacklist server
+.
