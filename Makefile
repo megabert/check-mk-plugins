@@ -9,3 +9,4 @@ $(SUBDIR_MAKES): force
 clean: $(CLEAN_DIRS)
 $(CLEAN_DIRS): force
 	cd $(patsubst clean_%,%,$(dir $@)) && make all-clean
+
