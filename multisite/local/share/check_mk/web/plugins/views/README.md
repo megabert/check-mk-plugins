@@ -1,6 +1,6 @@
 # Hostgroup without acknowledged Problems
 
-This extension creates a new view. It's derived from the "Hostgroup Summary" an only filters out all acknowledged services and hosts, so you can focus on the new problems. 
+This extension creates a new view. It's derived from the "Hostgroup Summary" an only filters out all acknowledged services and hosts, so you can focus on the new problems. Developed and tested on Check_MK Raw Edition 1.2.8p11
 
 ## Installation
 
