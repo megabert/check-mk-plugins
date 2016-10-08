@@ -12,11 +12,10 @@ def hgnoack_get_data(columns, query, only_sites, limit, all_active_filters):
 	datasource = multisite_datasources["hostgroups-without-acknowledged-elements"].copy()
 	datasource["table"] = "hostgroups"
 	hostgroups   = query_data(datasource, columns, [], query, only_sites, limit)
-	service_data = query_data(
-				multisite_datasources["services-without-acknowledged-elements"],
+	service_data = query_data( multisite_datasources["service-problems-acknowledged"],
 				["display_name", "host_name","host_groups","display_name","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
-	host_data = query_data( multisite_datasources["hosts-without-acknowledged-elements"],
+	host_data = query_data( multisite_datasources["host-problems-acknowledged"],
 				["host_name", "host_groups","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
 
@@ -46,11 +45,11 @@ def hgnoack_get_data(columns, query, only_sites, limit, all_active_filters):
 					if counter in host_const:
 						k = "hostgroup_num_hosts_"+host_const[counter]
 						hostgroups[ind][k] = hostgroups[ind][k] - ack[hg_name]["hosts"][counter] 
-		ind=ind+1
+		ind+=1
 
 	return hostgroups
 
-multisite_datasources["services-without-acknowledged-elements"] = {
+multisite_datasources["service-problems-acknowledged"] = {
     "title"   : _("Services"),
     "table"   : "services",
     "add_headers" : "Filter: state =~ 0\nFilter: acknowledged = 1\n",
@@ -59,7 +58,7 @@ multisite_datasources["services-without-acknowledged-elements"] = {
     "idkeys"  : [ "site", "display_name" ],
 }
 
-multisite_datasources["hosts-without-acknowledged-elements"] = {
+multisite_datasources["host-problems-acknowledged"] = {
     "title"   : _("Hosts"),
     "table"   : "hosts",
     "add_headers" : "Filter: state =~ 0\nFilter: acknowledged = 1\n",
