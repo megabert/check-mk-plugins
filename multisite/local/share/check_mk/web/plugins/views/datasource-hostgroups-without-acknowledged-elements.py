@@ -6,10 +6,10 @@ def dontspoilthenamespace_get_ack_hg_data(columns, query, only_sites, limit, all
 	datasource["table"] = "hostgroups"
 	hostgroups   = query_data(datasource, columns, [], query, only_sites, limit)
 	service_data = query_data(
-				multisite_datasources["services-without-acknowledged-elements"],
+				multisite_datasources["services-acknowledged-elements"],
 				["display_name", "host_name","host_groups","display_name","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
-	host_data = query_data( multisite_datasources["hosts-without-acknowledged-elements"],
+	host_data = query_data( multisite_datasources["hosts-acknowledged-elements"],
 				["host_name", "host_groups","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
 
@@ -55,7 +55,7 @@ def dontspoilthenamespace_get_ack_hg_data(columns, query, only_sites, limit, all
 
 	return hostgroups
 
-multisite_datasources["services-without-acknowledged-elements"] = {
+multisite_datasources["services-acknowledged-elements"] = {
     "title"   : _("Services"),
     "table"   : "services",
     "add_headers" : "Filter: state =~ 0\nFilter: acknowledged = 1\n",
@@ -64,7 +64,7 @@ multisite_datasources["services-without-acknowledged-elements"] = {
     "idkeys"  : [ "site", "display_name" ],
 }
 
-multisite_datasources["hosts-without-acknowledged-elements"] = {
+multisite_datasources["hosts-acknowledged-elements"] = {
     "title"   : _("Hosts"),
     "table"   : "hosts",
     "add_headers" : "Filter: state =~ 0\nFilter: acknowledged = 1\n",
