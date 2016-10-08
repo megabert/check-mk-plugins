@@ -39,12 +39,12 @@ def hgnoack_get_data(columns, query, only_sites, limit, all_active_filters):
 				for counter in ack[hg_name]["services"]:
 					if counter in svc_const:
 						k = "hostgroup_num_services_"+svc_const[counter]
-						hostgroups[ind][k] = hostgroups[ind][k] - ack[hg_name]["services"][counter] 
+						hostgroups[ind][k] -= ack[hg_name]["services"][counter] 
 			if "hosts" in ack[hg_name]:
 				for counter in ack[hg_name]["hosts"]:
 					if counter in host_const:
 						k = "hostgroup_num_hosts_"+host_const[counter]
-						hostgroups[ind][k] = hostgroups[ind][k] - ack[hg_name]["hosts"][counter] 
+						hostgroups[ind][k] -= ack[hg_name]["hosts"][counter] 
 		ind+=1
 
 	return hostgroups
