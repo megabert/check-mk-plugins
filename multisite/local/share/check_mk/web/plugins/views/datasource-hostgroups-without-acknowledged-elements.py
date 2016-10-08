@@ -9,13 +9,12 @@ def dontspoilthenamespace_get_ack_hg_data(columns, query, only_sites, limit, all
 				multisite_datasources["services-without-acknowledged-elements"],
 				["display_name", "host_name","host_groups","display_name","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
-	host_data = query_data(
-				multisite_datasources["hosts-without-acknowledged-elements"],
+	host_data = query_data( multisite_datasources["hosts-without-acknowledged-elements"],
 				["host_name", "host_groups","state","state_type","acknowledged"],
 				[],"",only_sites,limit)
 
-	svc_const  = { 1 : "warn", 2 : "crit" }
-	host_const = { 1 : "down" } 
+	svc_const  = { 1 : "warn", 2 : "crit"    }
+	host_const = { 1 : "down", 2 : "unreach" } 
 	ack={}
 	for svc in service_data:	
 		for hg in svc["host_groups"]:
@@ -81,4 +80,3 @@ multisite_datasources["hostgroups-without-acknowledged-elements"] = {
     "keys"    : [ "hostgroup_name" ],
     "idkeys"  : [ "site", "hostgroup_name" ],
 }
-
