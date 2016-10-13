@@ -19,7 +19,7 @@ NATIONAL_CRIT=2000
 DATE_TO=$(date +"%s")
 DATE_FROM=$(( $DATE_TO - $RANGE ))
 if [ -f "$LOGFILE" ] ; then
-        cat $LOGFILE | awk -F, '
+        awk -F, '
                 BEGIN {
                         premium=0;
                         international=0;
@@ -50,6 +50,6 @@ if [ -f "$LOGFILE" ] ; then
                                 message="Critical Count of national calls reached(Max. '$NATIONAL_CRIT' calls allowed"; }
                         printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", status, premium, international, national, message
                 }
-                '
+                ' $LOGFILE
 fi
 
