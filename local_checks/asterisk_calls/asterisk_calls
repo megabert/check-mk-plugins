@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#
+#	check name	: check_calls
+#	
+#	type		: local check
+#
+#	purpose		: check asterisk cdr logfile of specified time range
+#			  if a limit of certain types of calls is reached, to
+#			  detect fraud calls / security issues early
+#
+
+RANGE=86400  # = 1 day
+LOGFILE=/var/log/asterisk/cdr-csv/Master.csv
+INTERNATIONAL_CRIT=20
+PREMIUM_CRIT=1
+NATIONAL_CRIT=2000
+
+DATE_TO=$(date +"%s")
+DATE_FROM=$(( $DATE_TO - $RANGE ))
+if [ -f "$LOGFILE" ] ; then
+        cat $LOGFILE | awk -F, '
+                BEGIN {
+                        premium=0;
+                        international=0;
+                        national=0;
+                        status=0;
+                        message="No alerts"
+                }
+                { 
+                        gsub(/[-:]/," ",$10); 
+                        gsub(/"/,"",$10); 
+                        t=mktime($10);
+                        if(t>'$DATE_FROM' && t<'$DATE_TO') {
+                                gsub(/"/,"",$3); 
+                                if($3 ~ /^(0900|0190)/) { premium++;            next; }
+                                if($3 ~ /^00/)          { international++;      next; }
+                                if($3 ~ /^0[^0]/)       { national++;           next; }
+                        } 
+                }
+                END{
+                        if(premium       >= '$PREMIUM_CRIT'      ) { 
+                                status = 2; 
+                                message="Critical Count of premium-rate calls reached(Max. '$PREMIUM_CRIT' calls allowed"; }
+                        if(international >= '$INTERNATIONAL_CRIT') { 
+                                status = 2; 
+                                message="Critical Count of international calls reached(Max. '$INTERNATIONAL_CRIT' calls allowed"; }
+                        if(national >= '$NATIONAL_CRIT') { 
+                                status = 2; 
+                                message="Critical Count of national calls reached(Max. '$NATIONAL_CRIT' calls allowed"; }
+                        printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", status, premium, international, national, message
+                }
+                '
+fi
+
