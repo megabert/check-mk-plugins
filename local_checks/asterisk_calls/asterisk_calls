@@ -1,55 +1,64 @@
 #!/bin/bash
 
 #
-#	check name	: check_calls
-#	
-#	type		: local check
+#	Program: 	asterisk_calls
 #
-#	purpose		: check asterisk cdr logfile of specified time range
-#			  if a limit of certain types of calls is reached, to
-#			  detect fraud calls / security issues early
+#	Purpose:	Check if limit of premium rate calls or international calls is reached.
+#			give performance data
+#
+#	License:	WTFPL (See http://www.wtfpl.net/)
 #
 
-RANGE=86400  # = 1 day
-LOGFILE=/var/log/asterisk/cdr-csv/Master.csv
-INTERNATIONAL_CRIT=20
-PREMIUM_CRIT=1
-NATIONAL_CRIT=2000
+
+RANGE=86400                                     # = 1 day
+LOGFILE=/var/log/asterisk/cdr-csv/Master.csv    # Asterisk default cdr logfile
+INTERNATIONAL_CRIT=20                           # nr of international calls causing this check to become critical 
+PREMIUM_CRIT=1                                  # nr of premium rate  calls causing this check to become critical
+THIS_COUNTRY_DIALCODE=49                        # +49 -> Germany
+FILTER_AWAY_REGEX="NO_PATTERN_DEFINED"          # Line-RegEx to filter out before counting the numbers
 
 DATE_TO=$(date +"%s")
 DATE_FROM=$(( $DATE_TO - $RANGE ))
 if [ -f "$LOGFILE" ] ; then
-        awk -F, '
-                BEGIN {
-                        premium=0;
-                        international=0;
-                        national=0;
-                        status=0;
-                        message="No alerts"
+        perl -pe '
+
+        BEGIN {
+                        $premium=0;
+                        $international=0;
+                        $national=0;
+                        $status=0;
+                        $message="No alerts"
                 }
-                { 
-                        gsub(/[-:]/," ",$10); 
-                        gsub(/"/,"",$10); 
-                        t=mktime($10);
-                        if(t>'$DATE_FROM' && t<'$DATE_TO') {
-                                gsub(/"/,"",$3); 
-                                if($3 ~ /^(0900|0190)/) { premium++;            next; }
-                                if($3 ~ /^00/)          { international++;      next; }
-                                if($3 ~ /^0[^0]/)       { national++;           next; }
-                        } 
+
+        use Time::Local;
+        # this is a little bit ugly because of the format of cdr-file. 
+        $rex = qq(("[^",]*"|"""[^"]*""[^"]*"|"[^"]*"),);
+
+        while(<>) {
+                next if /'$FILTER_AWAY_REGEX'/;
+                /$rex$rex$rex$rex$rex$rex$rex$rex$rex$rex/;
+                $target=$3;
+                $start=$10;
+                $target=~s/"//g;
+                $target=~s/\+/00/g;
+                ($y,$m,$d,$H,$M,$S) = $start =~ /([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})/;
+                $date_epoch = timelocal($S,$M,$H,$d,$m-1,$y);
+                if($date_epoch >= '$DATE_FROM' and $date_epoch <= '$DATE_TO') {
+                        if($target =~ /^(0900|0190)/)   { $premium++;           next; }
+                        if($target =~ /^(0[^0]|00'$THIS_COUNTRY_DIALCODE')/)    { $national++;          next; }
+                        if($target =~ /^00/)            { $international++;     next; }
+
                 }
-                END{
-                        if(premium       >= '$PREMIUM_CRIT'      ) { 
-                                status = 2; 
-                                message="Critical Count of premium-rate calls reached(Max. '$PREMIUM_CRIT' calls allowed"; }
-                        if(international >= '$INTERNATIONAL_CRIT') { 
-                                status = 2; 
-                                message="Critical Count of international calls reached(Max. '$INTERNATIONAL_CRIT' calls allowed"; }
-                        if(national >= '$NATIONAL_CRIT') { 
-                                status = 2; 
-                                message="Critical Count of national calls reached(Max. '$NATIONAL_CRIT' calls allowed"; }
-                        printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", status, premium, international, national, message
-                }
-                ' $LOGFILE
+        } 
+        END {
+                        if($premium       >= '$PREMIUM_CRIT'      ) { 
+                                $status = 2; 
+                                $message="Critical Count of premium-rate calls reached(Max. '$PREMIUM_CRIT' calls allowed"; }
+                        if($international >= '$INTERNATIONAL_CRIT') { 
+                                $status = 2; 
+                                $message="Critical Count of international calls reached(Max. '$PREMIUM_CRIT' calls allowed"; }
+                        printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", $status, $premium, $international, $national, $message
+                }' <$LOGFILE
+
 fi
 
