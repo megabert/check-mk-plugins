@@ -31,7 +31,14 @@ if [ -f "$LOGFILE" ] ; then
                 }
 
         use Time::Local;
-        # this is a little bit ugly because of the format of cdr-file. 
+	# this is a little bit ugly because of the messy format of the cdr-file. 
+	# Difficult to parse because of the special use of quotes and commas in csv-file
+	#
+	# Example: 
+	# "","45","01234518163","from-phones","""Mr. Asterisk"" <45>","SIP/45-00000a52","SIP/sip-trunk-00000a53", ...
+	#    "Dial","SIP/09873218163@sip-trunk,120,Ttrg","2016-10-21 17:10:54","2016-10-21 17:11:18", ...
+	#    "2016-10-21 17:11:21",27,3,"ANSWERED","DOCUMENTATION","1477062654.3822",""
+
         $rex = qq(("[^",]*"|"""[^"]*""[^"]*"|"[^"]*"),);
 
         while(<>) {
