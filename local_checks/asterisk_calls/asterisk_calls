@@ -17,7 +17,7 @@ my $logfile			= "/var/log/asterisk/cdr-csv/Master.csv";   # Asterisk default cdr
 my $international_crit		= 20;                          		    # nr of international calls causing this check to become critical 
 my $premium_crit		= 1;   		                            # nr of premium rate  calls causing this check to become critical
 my $this_country_dialcode	= 49;                       		    # +49 -> Germany
-my $ignore_regex		= "07219668231";			    # Line-RegEx to filter out before counting the numbers
+my $ignore_regex		= undef;			            # Line-RegEx to filter out before counting the numbers
 
 my $date_from = time() - $range;
 my $premium		= 0;
