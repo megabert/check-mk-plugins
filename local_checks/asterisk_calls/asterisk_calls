@@ -54,6 +54,7 @@ if (-f $logfile ) {
 			if($target =~ /^00/)            		   { $international++;     next; }
 		}
 	} 
+	close($loghandle);
 }
 
 if($premium       >= $premium_crit       ) { 
