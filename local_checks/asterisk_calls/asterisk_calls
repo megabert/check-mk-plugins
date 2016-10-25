@@ -55,12 +55,12 @@ if (-f $logfile ) {
 		}
 	} 
 	close($loghandle);
-}
 
-if($premium       >= $premium_crit       ) { 
-	$status = 2; 
-	$message="Critical Count of premium-rate calls reached(Max. $premium_crit calls allowed"; }
-if($international >= $international_crit ) { 
-	$status = 2; 
-	$message="Critical Count of international calls reached(Max. $premium_crit calls allowed"; }
-printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", $status, $premium, $international, $national, $message
+	if($premium       >= $premium_crit       ) { 
+		$status = 2; 
+		$message="Critical Count of premium-rate calls reached(Max. $premium_crit calls allowed"; }
+	if($international >= $international_crit ) { 
+		$status = 2; 
+		$message="Critical Count of international calls reached(Max. $premium_crit calls allowed"; }
+	printf "%d Asterisk_Calls premium=%d|international=%d|national=%d %s\n", $status, $premium, $international, $national, $message
+}
