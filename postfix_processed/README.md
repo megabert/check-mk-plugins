@@ -16,3 +16,6 @@ backwards, which also improves speed.
 
 The size of the logfile should not matter, it should
 be able to handle files of several GBs in size.
+
+Functionality is similar to that one, with the check here having focusing on low resource footprint:
+https://exchange.nagios.org/directory/Plugins/Email-and-Groupware/Postfix/check_postfix_processed/details
