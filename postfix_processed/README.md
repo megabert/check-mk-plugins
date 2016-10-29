@@ -1,4 +1,4 @@
-= Check Postfix Processed Mails
+# Check Postfix Processed Mails
 
 This plugin examines the postfix log file and counts
 the send state(sent/bounced/deferred). The default 
