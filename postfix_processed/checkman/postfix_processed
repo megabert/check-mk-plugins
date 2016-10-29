@@ -1,0 +1,13 @@
+title: Postfix Processed Mails Check
+agents: linux
+author: Tobias Unsleber <tu@inline.de>
+license: GPL
+distribution: http://www.megabert.de/
+description:
+	Checks the number of the processed mails
+	in the postfix logfile. 
+
+inventory:
+ One Check per Server
+perfdata: 
+ Performancedata for sent and bounced mails and mail deferrals

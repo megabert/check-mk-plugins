@@ -1,0 +1,71 @@
+#
+#	Author:  Inline Internet Online Dienste GmbH
+#	Web:     www.inline.de
+#
+#	License: GPLv2
+#	http://www.gnu.org/licenses/gpl-2.0.txt
+#
+def inventory_postfix_processedmails(info):
+
+   inventory = []
+
+   for line in info:
+      if line[0] == "inspection_period":
+          inventory.append( ( None, None ) )
+   return inventory
+
+def check_postfix_processedmails(item, params, info):
+
+	OK	= 0
+	WARN	= 1
+	CRIT	= 2
+
+	levels = { 
+		"bounced"  : { "warn" : 50,  "crit" : 100  },
+		"sent"     : { "warn" : 500, "crit" : 1000 },
+		"deferred" : { "warn" : 50,  "crit" : 100  }
+		}
+	message = ""
+	values={}
+	state = OK
+	perfdata = []
+        for line in info:
+		if(line[0] == "inspection_period"):
+			inspection_period=saveint(line[1])
+			continue
+		if(line[0] == "send_state"):
+			for send_state in levels: 
+				if(line[1] == send_state):
+					values[send_state]=saveint(line[2])
+					if values[send_state] >= levels[send_state]["crit"]:
+						state = CRIT
+						comma= ", " if message else ""
+						message = message + comma + send_state + " " + str(values[send_state]) + " (!!) " \
+								+ " (Warn/Crit: " + str(levels[send_state]["warn"]) + "/" + str(levels[send_state]["crit"])+")" 
+						break
+					if values[send_state] >= levels[send_state]["warn"]:
+						state = WARN if state != CRIT else CRIT
+						comma= ", " if message else ""
+						message = message + comma + send_state + " " + str(values[send_state]) + " (!) " \
+								+ " (Warn/Crit: " + str(levels[send_state]["warn"]) + "/" + str(levels[send_state]["crit"])+")"
+						break
+					if values[send_state] <  levels[send_state]["warn"]:
+						comma= ", " if message else ""
+						message = message + comma + send_state + " " + str(values[send_state])
+								
+						break
+			if(line[1] == send_state):
+				perfdata.append((send_state,values[send_state]))
+			else:
+				unknown=line[1]
+				state = WARN if state != CRIT else CRIT
+				comma= ", " if message else ""
+				message = message + comma + "unknown mail processed state name " + unknown + " (fix this check!) (!)"
+	return(state, message, perfdata)
+
+check_info["postfix_processed"] = {
+    'check_function':                check_postfix_processedmails,
+    'inventory_function':        inventory_postfix_processedmails,
+    'service_description':       'Postfix Processed Mails',
+    'has_perfdata':              True,
+}

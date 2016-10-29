@@ -1,0 +1,230 @@
+#!/usr/bin/env lua
+
+--
+--      Check_MK Plugin         postfix.processedmails
+--
+--      Purpose                 Check the number of emails sent to remote servers of your postfix MTA
+--
+--      *** Requirements ***
+--
+--      * lua >= 5.1
+--      * postfix MTA
+--      * logfile should be var log mail.log (or change to your location)
+--      * The log entries of should look like this
+--
+--      Dec 19 00:23:22 yourserver postfix/smtp[27663]: 453B58C0335: to=<email@domain.com>, relay=somelserver.tld[1.2.3.4]:25, delay=0.51, delays=0/0.02/0.29/0.2, ...
+--			... dsn=2.0.0, status=sent|bounced|deferred (250 2.0.0 OK ....)
+--
+--      *** Details ***
+--
+--      First run takes a bit longer. After that Script runtime should be ~ 0.005 secs depending on the
+--	sent mail volume. Maillog is read backwards from end until it detects a Message-ID which it
+--	has already processed in a prior run and stops reading then.
+--
+--      After that all messages in the given inspection_period are counted
+--
+--      No alert here only for having a graph in check_mk
+--
+
+-- Config Section
+
+local inspection_period         = 3600                                          -- We monitor how much mails are sent out in this time period
+local lib_dir                   = "/var/lib/check_mk_postfix_processedmails2"   -- Place to write temp files
+local mail_ids_file             = lib_dir.."/mails"                             -- Storage for detected Mail-IDs and corresponding timestamps of sending
+local debug_mode                = false                                         -- Switch to true, if you like to debug this script
+local mail_log                  = "/var/log/mail.log"                           -- Where's the mail log?
+
+-- Config Section END
+
+local months = {
+        ["Jan"] = 1,
+        ["Feb"] = 2,
+        ["Mar"] = 3,
+        ["Apr"] = 4,
+        ["May"] = 5,
+        ["Jun"] = 6,
+        ["Jul"] = 7,
+        ["Aug"] = 8,
+        ["Sep"] = 9,
+        ["Oct"] = 10,
+        ["Nov"] = 11,
+        ["Dec"] = 12
+        }
+
+local year
+
+function now()          return (os.time())                      end
+function debug(...)     if(debug_mode) then print(...) end      end
+
+function get_time(line)
+        if(line) then
+                local month_name        , day_nr, time_str      = string.match(line,    "^(%a+)%s+(%d+)%s+(%S+)")
+                local hour              , min   , sec           = string.match(time_str,"^(%d%d):(%d%d):(%d%d)")
+                return(os.time({["year"]=year,["month"]=months[month_name],["day"]=day_nr,["hour"]=hour,["min"]=min,["sec"]=sec}))
+        end
+end
+
+
+function get_old_mail_ids()
+
+        local mails = {}
+        local mail_ids = mail_ids_file
+        local h = fopen(mail_ids,"r")
+        if(h) then
+                repeat
+                        local line = h:read("*l")
+                        if(line) then
+                                local mail_time, mail_id, send_state = line:match("^(%d+):([a-fA-F0-9]+):(.+)")
+                                if(mail_time) then
+					if (not mails[send_state]) then
+						mails[send_state]={}
+					end
+                                        mails[send_state][tostring(mail_id)]=mail_time
+                                end
+                        end
+                        until(not line)
+                h:close()
+        end
+        return mails
+end
+
+function write_mail_ids(mails,max_time)
+
+        local mail_ids = mail_ids_file
+        local h = fopen(mail_ids,"w")
+	for state,mails_state in pairs(mails) do
+		for mailid,epoch in pairs(mails_state) do
+			if((now() - epoch ) <= ( 2 * max_time) ) then
+				h:write(epoch..":"..mailid..":"..state.."\n")
+			end
+		end
+	end
+        h:close()
+end
+
+function count_elements(tbl)
+        local c=0
+        for k,v in pairs(tbl) do
+                c=c+1
+        end
+        return c
+end
+
+function shallowcopy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in pairs(orig) do
+            copy[orig_key] = orig_value
+        end
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+function count_mails_in_period(mails,inspection_period)
+        local count_mails = 0
+        for k,v in pairs(mails) do
+                if((now() - v) < inspection_period) then
+                        count_mails = count_mails + 1
+                end
+        end
+        return (count_mails)
+end
+
+function fopen(file,mode)
+
+        if(file) then
+                local h,err = io.open(file,mode)
+                if(h) then
+                        return (h)
+                else
+                        debug(err)
+                end
+        end
+end
+
+function mail_log_accessible()
+        local h,err = fopen(mail_log,"r")
+        if(not h) then
+                return {nil,err}
+        else
+                h:close()
+                return {true}
+        end
+end
+
+-- START OF MAIN PROGRAM --
+
+local res = mail_log_accessible()
+if(not res[1]) then
+        debug("Cannot open Mail-Log: ",res[2])
+        os.exit()
+end
+
+local old_mails         = get_old_mail_ids()
+local old_mails_count   = count_elements(old_mails)
+
+debug("Stored Mail-IDs: ",old_mails_count)
+
+local h, err, command
+
+command = "tac ".. mail_log
+debug(command)
+h,err = io.popen(command,"r")
+
+local all_mails
+
+if (h) then
+        os.execute("[ -d '"..lib_dir.."' ] || mkdir -p '"..lib_dir.."'")
+        debug("Successfully opened mail-log")
+              year              = os.date("*t")["year"]
+              all_mails         = shallowcopy(old_mails)
+
+        local line              = h:read("*l")
+        local count             = 0
+        local entry_time        = now()
+        local mail_id
+        local processed_lines   = 1
+
+        while (         line
+                and     (now() - entry_time ) <= inspection_period
+                and     not found_existing_mail
+                ) do
+
+                processed_lines = processed_lines + 1
+                entry_time      = get_time(line)
+
+                if(entry_time) then
+                        mail_id,send_state = line:match("postfix/smtp%[.*: ([0-9A-F]+): .*status=([a-zA-Z]+)")
+                        if(mail_id) then
+                                if(old_mails[send_state] and old_mails[send_state][mail_id]) then
+                                        found_existing_mail     = true
+                                else
+
+					if(not all_mails[send_state]) then
+						all_mails[send_state]={}
+					end
+                                        all_mails[send_state][tostring(mail_id)]      = entry_time
+                                end
+                        end
+                        count = count + 1
+                end
+                line            =       h:read("*l")
+        end
+        h:close()
+
+        write_mail_ids(all_mails,inspection_period)
+
+        print("<<postfix_processed>>")
+	local count_mails = {}
+        	print("inspection_period "  .. inspection_period)
+	for state,array in pairs(all_mails) do
+		count_mails[state] = count_mails_in_period(all_mails[state],inspection_period)
+        	print("send_state " .. state .. " " .. count_mails[state])
+	end
+else
+        debug("Error opening mail-log",err)
+end
