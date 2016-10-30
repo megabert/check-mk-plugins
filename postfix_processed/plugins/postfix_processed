@@ -29,7 +29,7 @@
 -- Config Section
 
 local inspection_period         = 3600                                          -- We monitor how much mails are sent out in this time period
-local lib_dir                   = "/var/lib/check_mk_postfix_processedmails2"   -- Place to write temp files
+local lib_dir                   = "/var/lib/check_mk_postfix_processedmails"    -- Place to write temp files
 local mail_ids_file             = lib_dir.."/mails"                             -- Storage for detected Mail-IDs and corresponding timestamps of sending
 local debug_mode                = false                                         -- Switch to true, if you like to debug this script
 local mail_log                  = "/var/log/mail.log"                           -- Where's the mail log?
