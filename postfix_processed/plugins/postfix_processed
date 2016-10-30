@@ -218,7 +218,7 @@ if (h) then
 
         write_mail_ids(all_mails,inspection_period)
 
-        print("<<postfix_processed>>")
+        print("<<<postfix_processed>>>")
 	local count_mails = {}
         	print("inspection_period "  .. inspection_period)
 	for state,array in pairs(all_mails) do
