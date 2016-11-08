@@ -1,0 +1,59 @@
+#!/bin/bash
+
+#
+#		check_ipmi_remote
+#
+#		check a remote ipmi device 
+#
+#		Parameter 1: IPMI-Device IP-Address or Hostname
+#
+
+ IPMITOOL="/usr/bin/ipmitool"
+ PASSWORD="YOUR_IPMI_PASSWORD_HERE"
+ADMINUSER="ADMIN"
+
+echo "$(date) : $*" >>/tmp/test.log
+
+if [ ! -x $IMPITOOL ]; then
+        echo "$IPMITOOL is missing. Cannot check remote IPMI"
+        exit 1
+fi
+
+IPMIHOST=$1
+
+if [ ! -n "$IPMIHOST" ]; then
+        echo "Usage: $(basename $0) {IPMI-IP-ADDRESS|IPMI-DNS-HOSNAME}"
+        exit 1
+fi
+
+if ping -c5 -q -i0.2 -w3 $IPMIHOST >/dev/null 2>&1; then
+        :
+else
+        echo "IPMI-Host $IPMIHOST is not reachable"
+        exit 2
+fi
+
+OUTPUT="$($IPMITOOL -H $IPMIHOST -U $ADMINUSER -P $PASSWORD chassis status 2>&1)"
+
+if echo "$OUTPUT" | grep -qE "^System Power"; then
+        echo "IPMI: OK"
+        exit 0
+else
+        TEMPFILE=$(mktemp)
+        wget -O- -q $IPMIHOST                                            >$TEMPFILE &
+        wget -O- -q $IPMIHOST/page/login.html                           >>$TEMPFILE &
+        wget -O- -q --no-check-certificate https://$IPMIHOST/login.html >>$TEMPFILE &
+        wait
+
+        if cat $TEMPFILE | \
+                grep -iqE "(ATEN INTERNATIONAL|STR_LOGIN_USERNAME|Integrated Dell Remote Access Controller|Authenticate with Login and Password|/root/SMC-RR1/workspace/SMC-RR1_workspace/Build/output/ImageTree/usr/local/www/index.html)"; then
+                echo "INFO: Only Webinterface working"
+                rm -f $TEMPFILE
+                exit 0
+        fi
+
+        echo "IPMI-Command Line and Webinterface not functional: IPMITOOL-OUTPUT: $OUTPUT"
+        rm -f $TEMPFILE
+        exit 2
+fi
+
