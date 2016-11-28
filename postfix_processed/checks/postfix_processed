@@ -21,9 +21,10 @@ def check_postfix_processedmails(item, params, info):
 	CRIT	= 2
 
 	levels = { 
-		"bounced"  : { "warn" : 50,  "crit" : 100  },
-		"sent"     : { "warn" : 500, "crit" : 1000 },
-		"deferred" : { "warn" : 50,  "crit" : 100  }
+		"bounced"  	: { "warn" : 50,  "crit" : 100  },
+		"sent"     	: { "warn" : 500, "crit" : 1000 },
+		"deferred" 	: { "warn" : 50,  "crit" : 100  },
+		"undeliverable" : { "warn" : 50,  "crit" : 100  }
 		}
 	message = ""
 	values={}
