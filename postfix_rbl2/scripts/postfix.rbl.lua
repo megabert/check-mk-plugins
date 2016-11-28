@@ -450,7 +450,6 @@ function blacklist_check_full(ips,servers)
 
         if not file_exists(OUTPUT_FILE_FULL) then
                 local handle,err  = io.open(OUTPUT_FILE_FULL,"w")
-                handle:write("<<<postfix_blacklist_check_full>>>\n")
                 for index,ip in ipairs(ips) do
                         handle:write("BLACKLISTCHECK_FULL "..ip.." IN_PROGRESS\n")
                 end
@@ -462,7 +461,7 @@ end
 
 -- valid output looks like this:
 --
--- <<<postfix>>> # the header is written in the check_mk plugin!
+-- <<<postfix_rbl2>>> # the header is written in the check_mk plugin!
 --
 -- BLACKLISTCHECK_SHORT 93.186.161.43 UNLISTED (checked 8 servers)
 -- BLACKLISTCHECK_FULL 93.186.161.43 UNLISTED (checked 213 servers)
