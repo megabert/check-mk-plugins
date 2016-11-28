@@ -1,0 +1,5 @@
+@reboot         root /usr/local/bin/postfix.rbl.lua -f 
+19 6,18 * * *   root /usr/local/bin/postfix.rbl.lua -f
+
+@reboot         root /usr/local/bin/postfix.rbl.lua -s 
+*/15 * * * *    root /usr/local/bin/postfix.rbl.lua -s

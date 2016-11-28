@@ -1,0 +1,59 @@
+#
+#       Author:  Inline Internet Online Dienste GmbH
+#       Web:     www.inline.de
+#
+#       License: GPLv2
+#       http://www.gnu.org/licenses/gpl-2.0.txt
+#
+
+def inventory_postfix_rbl(info):
+
+   inventory = []
+
+   for line in info:
+      if line[0][:14] == "BLACKLISTCHECK":
+          inventory.append( ( line[0][15:]+" "+line[1], None ) )
+   return inventory
+
+def check_postfix_rbl(item, params, info):
+
+        listed=0
+        listings=""
+        checked_nr_servers=""
+        all_ips=""
+        ip_count=0
+        in_progress=0
+        for line in info:
+                if(line[0][:14] == "BLACKLISTCHECK" and line[0][15:]+" "+line[1] == item):
+                        l = " ".join(line)
+                        t = re.match("BLACKLISTCHECK_(SHORT|FULL) ([^ ]+) (LISTED|UNLISTED) ?(\(checked [0-9]+ servers\))?((.*?) ?.*?)$",l)
+                        if(t and t.group(2)):
+                                ip_count=ip_count+1
+                                all = t.group(5)
+                                ip  = t.group(2)
+                                all_ips = ("" if all_ips == ""  else all_ips+", ") + ip
+                                checked_nr_servers = t.group(4) if t.group(4) else ""
+
+                        if(line[2][0:11] == "IN_PROGRESS"):
+                                in_progress=1
+
+                        if(line[2][0:6] == "LISTED"):
+                                listed=1
+                                if t:
+                                        listings=listings+ip +" listed at " + t.group(5)+" "
+
+        if listed:
+                return(2, listings + checked_nr_servers)
+
+        if in_progress:
+                return(0, "scanning in progress")
+
+        return(0, "unlisted " + checked_nr_servers)
+
+
+check_info["postfix_rbl2"] = {
+    'check_function':            check_postfix_rbl,
+    'inventory_function':        inventory_postfix_rbl,
+    'service_description':       'Postfix RBL %s',
+    'has_perfdata':              False,
+}

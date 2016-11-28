@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [ -f /var/lib/blacklistcheck/short ] && [ -f /var/lib/blacklistcheck/full ] ; then
+        echo "<<<postfix_rbl>>>"
+        cat /var/lib/blacklistcheck/*
+fi
