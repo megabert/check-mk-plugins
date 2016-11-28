@@ -91,7 +91,7 @@ function get_postfix_smtp_bind_ip()
                 line:gsub("smtp_bind_address = ([0-9][0-9]?[0-9]?%.([0-9][0-9]?[0-9]?)%.[0-9][0-9]?[0-9]?%.[0-9][0-9]?[0-9]?)",
                 function(ip) bind_address=ip end)
         end
-        return bind_address
+        if(bind_address) then return {bind_address} end 
 end
 
 function get_listen_ips_ss()
