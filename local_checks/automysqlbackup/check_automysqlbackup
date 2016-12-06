@@ -1,7 +1,9 @@
 #!/bin/bash
 
-if [ -f /etc/default/automysqlbackup ]; then
-	. /etc/default/automysqlbackup
+CONF=/etc/default/automysqlbackup
+
+if [ -f $CONF ]; then
+	. $CONF
 	ERROR_COUNT=$(find $BACKUPDIR -name "ERRORS_*" -size +1c 2>/dev/null | wc -l)
 	if [ $ERROR_COUNT -eq 0 ] ; then
 		echo "0 automysqlbackup - OK - No Error files"
