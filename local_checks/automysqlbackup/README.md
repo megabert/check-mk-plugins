@@ -1,4 +1,4 @@
-= Check for automsqlbackup
+# Check for automsqlbackup
 
 The check looks if there are any files named ERRORS_*
 in the backup directory. If there are: The check fails.
