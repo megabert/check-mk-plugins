@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ -f /etc/default/automysqlbackup ]; then
+	. /etc/default/automysqlbackup
+	ERROR_COUNT=$(find $BACKUPDIR -name "ERRORS_*" -size +1c 2>/dev/null | wc -l)
+	if [ $ERROR_COUNT -eq 0 ] ; then
+		echo "0 automysqlbackup - OK - No Error files"
+	else
+		echo "2 automysqlbackup - CRITICAL - Found $ERROR_COUNT non-empty error file(s) in backup directory"
+	fi
+fi
