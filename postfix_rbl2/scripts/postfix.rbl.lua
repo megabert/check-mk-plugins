@@ -197,11 +197,22 @@ end
 
 function init() 
 
-        res = directory_exists(OUTPUT_DIR) or os.execute("mkdir -p "..OUTPUT_DIR)
+        local res = directory_exists(OUTPUT_DIR) or os.execute("mkdir -p "..OUTPUT_DIR)
+	local error
+	
+        if(not (check_command(CMD["SS"]) or check_command(CMD["NETSTAT"]) )) then 
+		print("ERROR: Neither netstat nor ss are found in path, need at least one of them")
+		error=1
+	end
 
-        -- TODO
-        -- we should at least af netstat or ss
-        -- we should at least af ifconfig or ip
+        if(not (check_command(CMD["IP"]) or check_command(CMD["IFCONFIG"]) )) then 
+		print("ERROR: Neither ifconfig nor ip are found in path, need at least one of them")
+		error=1
+	end
+
+	if(error) then
+		os.exit(1)
+	end
 
 end
 
@@ -504,5 +515,8 @@ if(check_command(CMD["POSTCONF"])) then
                                    or ("LISTED "..arr[2])).."\n")
         end
         handle:close()
+else
+	print("No postconf, exiting")
+
 end
 
