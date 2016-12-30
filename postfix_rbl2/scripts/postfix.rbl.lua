@@ -4,7 +4,7 @@
 
 	program		: 	postfix-rbl.lua
 	
-	description	: 	does a RBL-check for relevant ips of an
+	description	: 	does a RBL-check for relevant ips of a
 				postfix mail server
 
 	details		:	- requires an installed postfix MTA
