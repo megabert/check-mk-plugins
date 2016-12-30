@@ -1,5 +1,30 @@
 #!/usr/bin/env lua
 
+--[[
+
+	program		: 	postfix-rbl.lua
+	
+	description	: 	does a RBL-check for relevant ips of an
+				postfix mail server
+
+	details		:	- requires an installed postfix MTA
+
+				- Figures out the relevant ips
+		
+					* Uses smtp_bind_address - if not configured then
+					* Uses all ipaddresses on which ports of a mailserver are listening(25,465,587)
+					* Uses available active ipaddresses as a fallback
+	
+				- There's a short(8 servers) and long test(~200 servers). The short Check uses up to
+				  one second per IP. The long test takes considerably longer with up to 1 minute per IP.
+				  I advise to keep a reasonable interval especially for the long check e. g. one day or
+				  even longer.
+
+				- Have in mind, that the use of most rbl-servers have certain limits. If you use more than
+				  allowed queries per hour/day/ip/network, you will be blocked.
+
+]]--
+
 CMD={
         ["IFCONFIG"]="ifconfig",
         ["IP"]="ip",
