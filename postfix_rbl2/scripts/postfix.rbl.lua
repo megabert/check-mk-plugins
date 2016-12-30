@@ -12,7 +12,7 @@
 				- Figures out the relevant ips
 		
 					* Uses smtp_bind_address - if not configured then
-					* Uses all ipaddresses on which ports of a mailserver are listening(25,465,587)
+					* Uses all ipaddresses on which the standard mailports are listening
 					* Uses available active ipaddresses as a fallback
 	
 				- There's a short(8 servers) and long test(~200 servers). The short Check uses up to
