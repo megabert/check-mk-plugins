@@ -1,7 +1,5 @@
 #!/usr/bin/env lua
 
--- require "lfs"
-
 CMD={
         ["IFCONFIG"]="ifconfig",
         ["IP"]="ip",
@@ -64,10 +62,10 @@ function find_ipv4_in_ifconfig_output()
                 function(ip,b) 
                         b=tonumber(b)
                         if (not ( 
-                                        ip:match("^192.168")
-                                or      ip == "127.0.0.1"
+                                        ip:match("^192%.168")
+                                or      ip:match("^127%.")
                                 or      ip:match("^10%.")
-                                or      ( ip:match("^172") and ( b >= 16 and b <= 31))
+                                or      ( ip:match("^172%.") and ( b >= 16 and b <= 31))
                                 )) then
                         ips[#ips+1]=ip
                         end
@@ -488,6 +486,7 @@ if (#arg == 0 and not (check_short or check_full) ) then
         print("\nUsage: "..debug.getinfo(1,'S').source:sub(2).." [ -f | -s ]");
         print("\n       -f      Full Scan of all "..#blacklistcheck_servers_all.." servers");
         print(  "       -s      Short Scan of the most important "..#blacklistcheck_servers.." servers\n");
+        print("\n	Output directory: "..OUTPUT_DIR.."\n");
         os.exit()
 end
 
