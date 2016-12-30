@@ -23,6 +23,11 @@
 				- Have in mind, that the use of most rbl-servers have certain limits. If you use more than
 				  allowed queries per hour/day/ip/network, you will be blocked.
 
+				- At the moment this script does no proper handling of timeouts of any command. Especially
+				  with the RBL-Servers this is very likely to happen now and then. So if it is important for
+				  you, that the script does not take more than a given max. of time, use the timeout system
+				  command to call this script
+
 ]]--
 
 CMD={
