@@ -64,10 +64,10 @@ function find_ipv4_in_ip_output()
                 function(ip,b) 
                         b=tonumber(b)
                         if (not ( 
-                                        ip:match("^192.168")
-                                or      ip == "127.0.0.1"
+                                        ip:match("^192%.168%.")
+                                or      ip:match("^127%.")
                                 or      ip:match("^10%.")
-                                or      ( ip:match("^172") and ( b >= 16 and b <= 31))
+                                or      ( ip:match("^172%.") and ( b >= 16 and b <= 31))
                                 )) then
                         ips[#ips+1]=ip
                         end
