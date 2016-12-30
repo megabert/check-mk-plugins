@@ -486,7 +486,7 @@ if (#arg == 0 and not (check_short or check_full) ) then
         print("\nUsage: "..debug.getinfo(1,'S').source:sub(2).." [ -f | -s ]");
         print("\n       -f      Full Scan of all "..#blacklistcheck_servers_all.." servers");
         print(  "       -s      Short Scan of the most important "..#blacklistcheck_servers.." servers\n");
-        print("\n	Output directory: "..OUTPUT_DIR.."\n");
+        print("	Output directory: "..OUTPUT_DIR.."\n");
         os.exit()
 end
 
@@ -515,7 +515,7 @@ if(check_command(CMD["POSTCONF"])) then
         end
         handle:close()
 else
-	print("No postconf, exiting")
+	print("postconf not found in path, exiting")
 
 end
 
