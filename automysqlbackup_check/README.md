@@ -13,7 +13,7 @@ The following is checked at the moment:
 
 ## Installation
 
- * install lua5.1-filesystem
+ * install lua5.1 + lua5.1-filesystem
  * get the two scripts here
  * have mysql + automysqlbackup installed
  * run ./mysql_check
