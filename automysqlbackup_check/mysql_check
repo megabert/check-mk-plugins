@@ -80,7 +80,7 @@ end
 function exec_get_res(cmd)
 
 	local res = os.execute("LC_ALL=C "..  cmd .." >/dev/null 2>&1")
-	return (res==0) and true or false
+	return (res==0)
 end
 
 function exec_get_output(cmd)
