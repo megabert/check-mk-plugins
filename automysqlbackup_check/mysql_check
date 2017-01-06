@@ -1,0 +1,495 @@
+#!/usr/bin/env lua
+
+require "lfs"
+
+--[[
+
+- dump file must not be too old			DONE
+- verify all databases online 			DONE
+- archive size 0 ?				DONE
+- verify compressed archive integrity		DONE	(not done - if header+footer exists, archive integrity should be ok)
+- verify dump header + footer			DONE
+- database count = dump file count		DONE
+
+]]--
+
+--- GLOBAL VARIABLES     ---
+
+local mysql_debian_conf = "/etc/mysql/debian.cnf"
+local amb_conf_file	= "/etc/default/automysqlbackup"
+
+local commands = {
+	["mysql_ping"]  	= "mysqladmin --defaults-file="..mysql_debian_conf.." ping"							,
+	["mysql_check"] 	= "mysqlcheck --defaults-file="..mysql_debian_conf.." --all-databases"						,
+	["mysql_list_dbs"] 	= "mysql --defaults-file="..mysql_debian_conf.." --skip-column-names --execute='show databases' --batch"
+	}
+
+local amb_config 			-- the automysqlbackup configuration
+local backup_db_names			-- the name of databases to backup 
+local check_state 	= {}		-- the complete check result
+local epoch_of_1st_of_current_month	-- the epoch of the 1 of the month 00:00, monthly backup should not be older than that
+
+local OK   = 0
+local WARN = 1
+local CRIT = 2
+
+--- GLOBAL VARIABLES END ---
+
+dofile "./dumper.lua"
+-- Define a shortcut function for testing
+function dump(...)
+--[[ 	for i,v in ipairs(arg) do
+		for k,v in pairs(v) do
+			print(k,v)
+		end
+	end ]]--
+  print(">>>\n",DataDumper(...), "\n<<<")
+end
+
+
+function file_get_contents(file)
+
+	local handle,err = io.open(file,"r")
+	if(handle) then
+		local data = handle:read("*all")
+		handle:close()
+		return data
+	end
+end
+
+function file_exists(file)
+	local res = lfs.attributes(file)
+	return res
+end
+
+function get_debian_maint_password() 
+
+	local data 	= file_get_contents(mysql_debian_conf)
+	if(data) then
+		local password 	= ""
+		password = data:match("password%s+=%s+(%S+)")
+		return password
+	end
+end
+
+function log(text)
+	-- print(arg[0].." : " ..text)
+end
+	
+
+function exec_get_res(cmd)
+
+	local res = os.execute("LC_ALL=C "..  cmd .." >/dev/null 2>&1")
+	return (res==0) and true or false
+end
+
+function exec_get_output(cmd)
+	local handle,err 	= io.popen("LC_ALL=C ".. cmd .. " 2>/dev/null","r")
+	local data 		= handle:read("*all")
+	handle:close()
+	return data
+end
+
+function mysql_alive()
+	-- check if mysql is alive
+	return exec_get_output(commands["mysql_ping"]):match("is alive")
+end
+
+function mysql_check_ok()
+	-- check if all databases are ok, run check with ionice -c3! run check with nice -n19! 
+	local nores
+	for line in string.gmatch(exec_get_output(commands["mysql_check"]), "[^\n]+") do
+		if(not line:match("OK$")) then
+			if(nores) then
+				if (line:match("doesn't support")) then
+					nores=false
+				else
+					-- error!
+					return false
+				end
+			else
+				nores=true
+			end
+		end
+	end
+	return true
+end
+
+function split(text)
+
+	text=text or ""
+	local elements={}
+	text:gsub("(%S+)",function(word) elements[#elements+1]=word end)
+	return elements
+end
+
+function get_all_database_names()
+	dbs = {}
+	for line in string.gmatch(exec_get_output(commands["mysql_list_dbs"]), "[^\n]+") do
+		dbs[#dbs+1]=line
+	end
+	return dbs
+end
+
+function get_automysqlbackup_config() 
+	--[[
+		Important Config Values
+		DBHOST	 	-- limited checks if not localhost
+		DBNAMES  	-- DBs to back up
+		DBEXCLUDE	-- DBs to exclude from backup if DBNAMES is set to all
+		BACKUPDIR	-- where's the treasure?
+	]]--
+
+	local cmd = 		' bash -c ". /etc/default/automysqlbackup ; '
+			..	' echo -ne 	\\"BACKUPDIR=\\$BACKUPDIR\\n'
+			..			'DBNAMES=\\$DBNAMES\\n'
+			..			'MDBNAMES=\\$MDBNAMES\\n'
+			..			'SEPDIR=\\$SEPDIR\\n'
+			..			'DBEXCLUDE=\\$DBEXCLUDE\\""'
+
+	-- global amb_config !!
+	      amb_config = {}
+	for line in string.gmatch(exec_get_output(cmd), "[^\n]+") do
+		name,value = line:match("^(%S+)=(.*)")
+		amb_config[name]=split(value)
+	end
+end
+
+function amb_config_backup_all_databases(dbs) 
+	for _, dbname in ipairs(dbs) do
+		if(dbname=="all") then
+			return true
+		end
+	end
+end
+
+function subtract_db_names(all,excludes)
+	local dbs = {}
+	local exclude 
+	for _,dbname  in ipairs(all) do
+		exclude=false
+		for _,exclude_db in ipairs(excludes) do
+			if(dbname == exclude_db) then
+				exclude=true
+			end
+		end
+		if(not exclude) then
+			dbs[#dbs+1]=dbname
+		end
+	end
+	return dbs
+end
+
+function get_db_backup_names() 
+	local dbs_to_backup
+	local monthly_dbs_to_backup
+	if(amb_config_backup_all_databases(amb_config["DBNAMES"])) then
+		all_databases = get_all_database_names()
+		dbs_to_backup = subtract_db_names(all_databases,amb_config["DBEXCLUDE"])
+	else
+		dbs_to_backup=amb_config["DBNAMES"]
+	end
+
+	if(amb_config_backup_all_databases(amb_config["MDBNAMES"])) then
+		all_databases = get_all_database_names()
+		monthly_dbs_to_backup = subtract_db_names(all_databases,amb_config["DBEXCLUDE"])
+	else
+		monthly_dbs_to_backup=amb_config["MDBNAMES"]
+	end
+
+	backup_db_names = { ["monthly"] = monthly_dbs_to_backup, ["always"] = dbs_to_backup }
+end
+
+function max(tbl)
+
+end
+
+function get_mod_date(file_or_dir)
+	return lfs.attributes(file_or_dir).modification 
+end
+
+function get_state_change_date(file_or_dir)
+	return lfs.attributes(file_or_dir).change 
+end
+
+function get_oldest_state_or_mod_data()
+
+	-- figure out which of the directories of automysqlbackup is the oldest
+	-- either in terms of modification date or by state change date
+
+	local backup_dir = amb_config["BACKUPDIR"][1]
+	local elements ={backup_dir.."/daily",backup_dir.."/weekly",backup_dir.."/monthly"}
+	local epoch_values = {}
+	for _, element in ipairs(elements) do
+		epoch_values[#epoch_values+1]=get_state_change_date(element)
+		epoch_values[#epoch_values+1]=get_mod_date(element)
+	end
+	local oldest
+	for _, epoch in ipairs(epoch_values) do
+		oldest = (not oldest) and epoch or (epoch < oldest and epoch or oldest)
+	end
+	return oldest
+end
+
+function check_amb_data()
+
+--	How long is automysqlbackup running?
+--
+--	if dir daily exists -> amb has run at least once -> check_daily
+--	if oldest dir older than the first of the month -> check_monthly
+--
+	local oldest_dir = get_oldest_state_or_mod_data()
+	local now = os.date("*t")
+	epoch_of_1st_of_current_month = os.time{year=now.year,month=now.month,day=1,hour=0,minute=0,second=0}
+
+	if(oldest_dir < epoch_of_1st_of_current_month) then
+		check_amb_monthly()
+	end	
+	check_amb_daily()
+
+end
+
+function check_db_dump_file(file)
+	-- print(file)
+end
+
+function get_newest_dumpfile(dir,dbname)
+	local newest_age, newest_file, path
+	if(not lfs.attributes(dir)) then
+		return
+	end
+		
+	for element in lfs.dir(dir) do
+		if(element:match("^"..dbname..".*")) then
+			path = dir .."/"..element
+			mod = lfs.attributes(path).modification
+			if(newest_age)then
+				if(mod > newest_age) then
+					newest_age=mod
+					newest_file=path
+				end
+			else
+				newest_age=mod
+				newest_file=path
+			end
+		end
+	end
+	return newest_file
+end
+
+function get_compressor(file)
+	if(file:match("%.gzi?p?$")) then
+		return "gzip"
+	end
+	if(file:match("%.xz$")) then
+		return "xz"
+	end
+	if(file:match("%.bzi?p?2")) then
+		return "bzip2"
+	end
+end
+
+function archive_integrity_failed(file)
+	local compressor = get_compressor(file) 
+	if(compressor) then 
+		return not exec_get_res(compressor.." --test "..file)
+	end
+end
+
+function first_line_last_line_fail(file)
+
+	-- check if the first line an the last line matches a mysqldump pattern
+
+	local compressor = get_compressor(file) 
+	local handle, line
+	if (compressor) then
+		-- all compressor programs can handle --decompress and --to-stdout
+		handle,err =io.popen(compressor .. " --decompress --to-stdout " .. file,"r")
+	else
+		handle,err =io.open(file,"r")
+	end
+	first = handle:read("*l")
+	if(not first:match("^-- MySQL dump ")) then
+		handle:close()
+		return true
+	end
+	for value in handle:lines() do last=value end
+	if(not last:match("^-- Dump completed on ")) then
+		handle:close()
+		return true
+	end
+end
+
+
+function check_amb_dir(dir,dbnames,sepdir,min_age)
+	local check_result={}
+	if(dir_exists(dir)) then
+		for _,dbname in ipairs(dbnames) do
+			if(sepdir) then
+				db_dump_file = get_newest_dumpfile(dir.."/"..dbname,dbname)
+			else
+				db_dump_file = get_newest_dumpfile(dir,dbname)
+			end	
+			if(db_dump_file) then
+				local attrs = lfs.attributes(db_dump_file)
+				if(attrs.modification < min_age) then
+					log(db_dump_file.." is too old")
+					check_result["too_old"]=true
+				end
+				if(attrs.size == 0) then
+					check_result["zero_size"]=true
+				end
+				if(archive_integrity_failed(db_dump_file)) then
+					log(db_dump_file.." is a corrupt archive")
+					check_result["archivecorrupt"]=true
+				else
+					if(first_line_last_line_fail(db_dump_file)) then
+						log(db_dump_file.." is a corrupt dump")
+						check_result["dumpcorrupt"]=true
+					end
+				end
+				check_db_dump_file(db_dump_file)
+			else
+				log("No dump file for db "..dbname.." in directory "..dir)
+				check_result["missing_backups"]=(not check_result["missing_backups"]) and 1 or (check_result["missing_backups"]+1)
+			end
+		end
+	end
+	return(check_result)
+end
+
+function check_amb_daily()
+	local res = check_amb_dir(
+		amb_config["BACKUPDIR"][1].."/daily",
+		backup_db_names["always"],
+		amb_config["SEPDIR"][1]=="yes",
+		os.time() - 86400) -- max age 24 hours
+
+	for k,v in pairs(res) do
+		check_state["daily_"..k] = v
+	end
+end
+
+function check_amb_monthly()
+	local res = check_amb_dir(amb_config["BACKUPDIR"][1].."/monthly",
+		backup_db_names["monthly"],
+		amb_config["SEPDIR"][1]=="yes",
+		epoch_of_1st_of_current_month) -- max age not older than first of month
+	for k,v in pairs(res) do
+		check_state["monthly_"..k] = v
+	end
+end
+
+function dir_exists(dir)
+	local attrs = lfs.attributes(dir)
+	if(attrs) then
+		return lfs.attributes(dir).mode == "directory"
+	end
+end
+
+function report()
+
+  -- check results are in global table check_state
+  local errors = {}
+  local errmsg = ""
+  local status = OK
+
+  -- do not report that automysqlback has never run, when it is not installed
+  if(check_state["amb_installed"]) then
+	if(not check_state["amb_run_once"]) then
+		status = WARN
+		errors[#errors+1]= "Automysqlbackup has never run(!)"
+	end
+	if(check_state["daily_missing_backups"]) then
+		status = WARN
+		errors[#errors+1]= "There are "..check_state["daily_missing_backups"].. " missing backups in the daily backup set(!)"
+	end
+	if(check_state["monthly_missing_backups"]) then
+		status = WARN
+		errors[#errors+1]= "There are "..check_state["monthly_missing_backups"].. " missing backups in the monthly backup set(!)"
+	end
+	if(check_state["daily_archivecorrupt"] or check_state["daily_dumpcorrupt"]) then
+		status = WARN
+		errors[#errors+1]= "At least one daily dump is defective(!)"
+	end
+	if(check_state["monthly_archivecorrupt"] or check_state["monthly_dumpcorrupt"]) then
+		status = WARN
+		errors[#errors+1]= "At least one monthly dump is defective(!)"
+	end
+	if(check_state["daily_too_old"]) then
+		status = WARN
+		errors[#errors+1]= "At least one daily dump is too old(!)"
+	end
+	if(check_state["monthly_too_old"]) then
+		status = WARN
+		errors[#errors+1]= "At least one daily dump is too old(!)"
+	end
+	if(check_state["daily_zero_size"]) then
+		status = WARN
+		errors[#errors+1]= "At least one daily dump has zero size(!)"
+	end
+	if(check_state["monthly_zero_size"]) then
+		status = WARN
+		errors[#errors+1]= "At least one monthly dump has zero size(!)"
+	end
+  -- else 
+  --	errors[#errors+1]= "Automysqlbackup is not installed(!)" 
+  end
+  if(check_state["mysql_checks_passed"] == false) then
+	status = CRIT
+	errors[#errors+1]= "MySQL-Check discovered errors(!)"
+  end
+
+
+  for i,msg in ipairs(errors) do
+	errmsg = (errmsg == "") and msg or (errmsg..", "..msg)
+  end
+  status = (#errors >= 1) and WARN or OK
+  if(check_state["amb_installed"]) then
+	print (tostring(status).." automysqlbackup - " .. ( (#errors>=1) and errmsg or "Alles OK"))
+  end
+end
+
+-------------- main program start --------------------
+
+-- TODO: Determine difference between mysql not running and wrong credentials
+-- TODO: Performance: No need to unpack dumps twice!
+
+
+if mysql_alive() then
+	check_state["mysql_alive"] = true
+	if(file_exists(amb_conf_file)) then
+		check_state["amb_installed"] = true
+		-- automysqlbackup config file found -> amb is installed
+		get_automysqlbackup_config()
+		get_db_backup_names()
+		
+		-- I assume BACKUPDIR to always be defined in amb_config
+		if(amb_config["BACKUPDIR"] and amb_config["BACKUPDIR"][1] and dir_exists(amb_config["BACKUPDIR"][1].."/daily")) then
+			check_state["amb_run_once"] = true
+			-- backup_dir "daily" exists -> amb has at least run once
+			check_amb_data()
+		else
+			check_state["amb_run_once"] = false
+			-- backup_dir "daily" is missing -> amb has never run 
+		end
+	else
+		-- automysqlbackup not installed
+		check_state["amb_installed"] = false
+	end
+	-- check mysql whether amb is installed or not
+	--[[
+	if(mysql_check_ok()) then
+		check_state["mysql_checks_passed"] = true
+	else
+		check_state["mysql_checks_passed"] = false
+	end
+	]]--
+else	
+	check_state["mysql_alive"] = false
+end
+
+report()
+
+dump(amb_config)
+dump(check_state)
