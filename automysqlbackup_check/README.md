@@ -17,7 +17,7 @@ The following is checked at the moment:
  * Do the expected dumpfiles exist?
  * Validate the dumpfile(size >0, validate header and footer)
 
-## Installation
+## Installation(Target server only)
 
  * install lua5.1 + lua5.1-filesystem packages
  * install the cron-job check_amb.cron into /etc/cron.d

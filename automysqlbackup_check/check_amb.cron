@@ -1,3 +1,4 @@
 # Install this file as /etc/cron.d/check_amb.cron
 
-0 3 * * * root /usr/local/bin/automysqlbackup_check >/var/lib/misc/automysqlbackup_check
+# check automysqlbackup data files once a week, every sunday at 3:00
+0 3 * * 0 root /usr/local/bin/automysqlbackup_check >/var/lib/misc/automysqlbackup_check
