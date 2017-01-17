@@ -1,0 +1,3 @@
+# Install this file as /etc/cron.d/check_amb.cron
+
+0 3 * * * root /usr/local/bin/automysqlbackup_check >/var/lib/misc/automysqlbackup_check

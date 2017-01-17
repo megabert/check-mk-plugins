@@ -1,0 +1,10 @@
+#!/bin/bash
+
+CACHEFILE=/var/lib/misc/automysqlbackup_check
+
+if [ -f /etc/default/automysqlbackup  ] ; then
+        find $CACHEFILE -mtime +8 -exec rm -f {} \; 2>/dev/null
+        if [ -f $CACHEFILE ]; then
+                cat $CACHEFILE
+        fi
+fi
