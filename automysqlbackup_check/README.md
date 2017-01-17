@@ -1,5 +1,11 @@
 # Verify the Dumps of automysqlbackup
 
+## Systemrequirements
+
+ * Debian or Ubuntu
+ * MySQL installed
+ * automysqlbackup installed
+
 ## What does it do?
 
 Verify the operation and the dumps of the script automysqlbackup
@@ -13,11 +19,10 @@ The following is checked at the moment:
 
 ## Installation
 
- * have mysql + automysqlbackup installed
  * install lua5.1 + lua5.1-filesystem packages
  * install the cron-job check_amb.cron into /etc/cron.d
  * install the main script automysqlbackup_check to /usr/local/bin/automysqlbackup_check and chmod to executable 
- * install the local plugin local.automysqlbackup to directory /usr/lib/check_mk_agent/local/
+ * install the local plugin local.automysqlbackup to directory /usr/lib/check_mk_agent/local/ and chmod to executable
  * run the check manually once: /usr/local/bin/automysqlbackup_check | tee /var/lib/misc/automysqlbackup_check 
  * rescan all services of the host within check_mk and activate, a new check should now be there
 
