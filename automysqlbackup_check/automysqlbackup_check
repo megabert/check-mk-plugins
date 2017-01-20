@@ -10,6 +10,7 @@ require "lfs"
 - verify compressed archive integrity		DONE	(not done - if header+footer exists, archive integrity should be ok)
 - verify dump header + footer			DONE
 - database count = dump file count		DONE
+- check if the dump is empty			TODO A dump can be correct, but if there are is DATA to be inserted, this can be a sign of a broken dump
 
 ]]--
 
