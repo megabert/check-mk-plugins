@@ -29,7 +29,7 @@ def hgnoack_get_data(columns, query, only_sites, limit, all_active_filters):
 			
 	for host in host_data:	
 		for hg in host["host_groups"]:
-			ack[hg]["hosts"][svc["state"]]+=1
+			ack[hg]["hosts"][host["state"]]+=1
 
 	ind=0
 	for hg in hostgroups:
