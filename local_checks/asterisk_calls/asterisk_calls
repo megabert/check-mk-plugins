@@ -47,11 +47,13 @@ if (-f $logfile ) {
 		$target=~s/"//g;
 		$target=~s/\+/00/g;
 		($y,$m,$d,$H,$M,$S) = $start =~ /([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})/;
-		$date_epoch = timelocal($S,$M,$H,$d,$m-1,$y);
-		if($date_epoch >= $date_from) {
-			if($target =~ /^(0900|0190)/)   		   { $premium++;           next; }
-			if($target =~ /^(0[^0]|00$this_country_dialcode)/) { $national++;          next; }
-			if($target =~ /^00/)            		   { $international++;     next; }
+		if($y) { # do we have a valid date?
+			$date_epoch = timelocal($S,$M,$H,$d,$m-1,$y);
+			if($date_epoch >= $date_from) {
+				if($target =~ /^(0900|0190)/)   		   { $premium++;           next; }
+				if($target =~ /^(0[^0]|00$this_country_dialcode)/) { $national++;          next; }
+				if($target =~ /^00/)            		   { $international++;     next; }
+			}
 		}
 	} 
 	close($loghandle);
