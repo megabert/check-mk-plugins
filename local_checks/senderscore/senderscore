@@ -18,6 +18,11 @@ use Net::DNS::Resolver;
 my $resolver = new Net::DNS::Resolver();
 my $rbl_addr = "score.senderscore.com";
 
+# add the minimum score for the warn/crit state
+# set values to 0 to disable warn/crit state
+my $score_warn = 0;
+my $score_crit = 0;
+
 sub get_ips {
 
         # get ips from ip and ifconfig
@@ -95,8 +100,13 @@ sub get_score {
 
 sub mk_checkmk_line {
 
+	# generate check_mk line
+
         my ($ip,$score) = @_;
-        print "0 senderscore_$ip score=$score Senderscore value for ip $ip is $score\n";
+	my $state=0;
+	$state=1 if($score <= $score_warn);
+	$state=2 if($score <= $score_crit);
+        print "$state senderscore_$ip score=$score Senderscore value for ip $ip is $score\n";
 
 }
 
