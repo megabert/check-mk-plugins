@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -T
 
 #
 #	check_mk local check senderscore
@@ -16,7 +16,8 @@ use warnings;
 use strict;
 use Net::DNS::Resolver;
 my $resolver = new Net::DNS::Resolver();
-my $rbl_addr = "score.senderscore.com";
+my $score_addr = "score.senderscore.com";
+$ENV{'PATH'} = "/bin:/sbin:/usr/bin:/usr/sbin";
 
 # add the minimum score for the warn/crit state
 # set values to 0 to disable warn/crit state
@@ -82,7 +83,7 @@ sub get_score {
 
         my $ip = shift;
         my $ip_rev = ip_rev($ip);
-        my $query_target= "$ip_rev.$rbl_addr";
+        my $query_target= "$ip_rev.$score_addr";
         my $resolved = $resolver->query($query_target);
         if($resolved) {
                 # Perl Net::DNS::Resolver does relyably return the address, so 
