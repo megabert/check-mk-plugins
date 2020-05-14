@@ -8,6 +8,8 @@ So this plugin aacraid.smart does exactly that. It calls arcconf getsmartstats
 for every controller and transformes the xml data into standard SMART lines 
 that checkmk.smart expects.
 
+This is tested with Adaptec ASR 5405 RAID Controllers and SATA disks only so far.
+
 ## Requirements
 
 arcconf version 3.0 is installed in path
