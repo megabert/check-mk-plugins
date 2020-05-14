@@ -24,7 +24,7 @@ arcconf version 3.0 is installed in path
 5 1 * * *	root	/usr/sbin/aacraid.smart controller_scan
 ```
 
-- at the following line at the end of the smart plugin of check_mk 
+- add the following line at the end of the smart plugin of check_mk 
 
 ```
 [ -x /usr/sbin/aacraid.smart ] && /usr/sbin/aacraid.smart smart_display
