@@ -1,4 +1,4 @@
-= Addition for Smart Data for Adaptec RAID controllers =
+# Addition for Smart Data for Adaptec RAID controllers
 
 Normally Adaptec RAID Controllers should not report SMART status via the
 SCSI-Generic Device. Some controllers does not do that and only reveal
@@ -8,11 +8,11 @@ So this plugin aacraid.smart does exactly that. It calls arcconf getsmartstats
 for every controller and transformes the xml data into standard SMART lines 
 that checkmk.smart expects.
 
-= Requirements =
+## Requirements
 
 arcconf version 3.0 is installed in path
 
-= Installation =
+## Installation
 
 - copy aaraid.smart to /usr/sbin and make it executable
 - install the following cronjobs which will do the necessary tasks in background
@@ -30,6 +30,6 @@ arcconf version 3.0 is installed in path
 [ -x /usr/sbin/aacraid.smart ] && /usr/sbin/aacraid.smart smart_display
 ```
 
-= Patch for LSI/Megaraid Apdater =
+# Patch for LSI/Megaraid Controllers
 
 The patch provides SMART Data for Disks behind a LSI/Megaraid Adapter.
