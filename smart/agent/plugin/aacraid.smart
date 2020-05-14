@@ -298,8 +298,6 @@ sub write_checkmk_smart_data {
 			$smart->{"name"} = "Raw_Read_Error_Rate" 	if($smart->{"name"} eq "Read_Error_Rate");
 			$smart->{"name"} = "Start_Stop_Count" 		if($smart->{"name"} eq "Start/Stop_Count");
 			$smart->{"name"} = "Multi_Zone_Error_Rate"	if($smart->{"name"} eq "Multi-Zone_Error_Rate");
-
-			($smart->{"name"}) =~ s/ /_/g;
 			
 			printf $output "%-s undef %s %3s %-40s undef %5s %5s %5s   undef  undef    -    %12s\n",
 			 		"Ctrl".$dev->{"controller"}."/" ."Conn".$dev->{"connector"}."/" ."Dev".$dev->{"device"},
