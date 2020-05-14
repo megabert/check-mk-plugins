@@ -1,0 +1,370 @@
+#!/usr/bin/perl -T
+
+use strict;
+use warnings;
+
+use File::Copy;
+use File::Basename;
+
+$ENV{"PATH"}="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin";
+
+use constant TEMP_DIR	=> "/var/tmp";
+
+use constant {
+	DEBUG 		=> 1,
+	controllers	=> TEMP_DIR."/aacraid_controllers.tmp",
+	arcconf		=> "arcconf",
+	checkmk_output	=> "/dev/shm/aacraid.checkmk.smart.dat"
+};
+
+
+sub debug {
+
+	if(DEBUG) {
+		print $_[0]."\n"
+	}
+
+}
+sub log {
+	print "$_[0]\n";
+}
+
+sub init {
+
+	if(system("bash -c 'type ".arcconf." &>/dev/null'")) {
+		#debug(arcconf." not found");
+			return 0;
+	} else {
+		#debug(arcconf." found");
+	}
+	
+	return get_controllers();
+
+}
+
+sub get_controllers{
+
+=for comment
+
+output of: aacraid list 
+
+Controllers found: 2
+----------------------------------------------------------------------
+Controller information
+----------------------------------------------------------------------
+   Controller ID             : Status, Slot, Mode, Name, SerialNumber, WWN
+----------------------------------------------------------------------
+   Controller 1:             : Optimal, Slot 2, RAID (Expose RAW), Adaptec 5405, 0D17115B461, 50000D11028BC880
+   Controller 2:             : Optimal, Slot 5, RAID (Expose RAW), Adaptec 5405, 9C0410E808E, 50000D1101778700
+
+Command completed successfully.
+=cut
+	
+	my ($line, $controller, $c, $list);
+	$list = [];
+
+	# rescan controllers once a day or after reboot(because /var/tmp is deleted at startup)
+	my ($file)=grep { -f and -M >= 1 } glob controllers;
+	if($file) {
+		($file) = $file =~ /(.*)/;
+		debug($file);
+		unlink($file);
+	}
+
+	unless(-e controllers) {
+		system(arcconf." list >".controllers." 2>/dev/null");
+	}
+	open($c,"<",controllers);
+	while($line=<$c>) {
+		($controller) = $line =~ /^[[:space:]]*Controller ([0-9]+):/;
+		if($controller) {
+			#debug("controller $controller found");
+			push @$list,$controller;
+		}
+	}
+	return $list;
+}
+
+sub get_disks {
+
+=for comment
+     Device #3
+         Device is a Hard drive
+         State                              : Online
+         Block Size                         : 512 Bytes
+         Supported                          : Yes
+         Transfer Speed                     : SATA 3.0 Gb/s
+         Reported Channel,Device(T:L)       : 0,3(3:0)
+         Reported Location                  : Connector 0, Device 3
+         Vendor                             : WDC
+         Model                              : WD1002FBYS-0
+         Firmware                           : 03.00C06
+         Serial number                      : WD-WMATV6909612
+         World-wide name                    : 50000D1101778712
+         Reserved Size                      : 538264 KB
+         Used Size                          : 953344 MB
+         Unused Size                        : 64 KB
+         Total Size                         : 953869 MB
+         Write Cache                        : Disabled (write-through)
+         FRU                                : None
+         S.M.A.R.T.                         : No
+         S.M.A.R.T. warnings                : 0
+         Power State                        : Full rpm
+         Supported Power States             : Full rpm,Powered off
+         SSD                                : No
+         Temperature                        : Not Supported
+      ----------------------------------------------------------------
+      Device Phy Information                
+      ----------------------------------------------------------------
+         Phy #0
+            PHY Identifier                  : 0
+            SAS Address                     : 50000D1101778712
+            Attached PHY Identifier         : 2
+            Attached SAS Address            : 50000D1101778700
+
+=cut 
+	my $controllers = $_[0];
+	my $arcconf_output;
+	my $device;
+	my $key;
+	my $data = {};
+
+	foreach my $c (@$controllers) {
+		my $controller=[];
+		$arcconf_output = `${ \arcconf } getconfig $c pd`;
+		for my $line (split /^/, $arcconf_output) {
+			#print $line;
+			if($line =~ /^\s*Device #[0-9]+/) {
+				$device = {};
+			}
+
+			if($line =~ /^\s*Reported Location\s*:\s+Connector ([0-9]+),\s+Device\s+([0-9]+)/) {
+				$device->{"connector"}=$1;
+				$device->{"device"}=$2;
+			}
+			if($line =~ /^\s*Model\s+:\s+(.*)/) {
+				$device->{"model"}=$1;
+			}
+			if($line =~ /^\s*Vendor\s+:\s+(.*)/) {
+				$device->{"vendor"}=$1;
+			}
+			if($line =~ /^\s*Serial number\s+:\s+(\S+)/) {
+				$device->{"serial"}=$1;
+			}
+			if($line =~ /^\s*Total Size\s+:\s+(\S+)/) {
+				$device->{"size_mb"}=$1;
+			}
+			if($line =~ /^\s*Write Cache\s+:\s+(\S+)/) {
+				$device->{"cache"}=$1;
+				$device->{"controller"}=$c;
+				$key=$c."_".$device->{"connector"}."_".$device->{"device"};
+
+				# workaround for wrong vendor/model values(vendor empty, model contains vendor)
+				# split at first blank char
+				if($device->{"vendor"} eq "") {
+					($device->{"model"}) =~ /(\S+)\s(.*)/;
+					if($1) {
+						$device->{"vendor"}=$1;
+						$device->{"model"}=$2;
+					}
+				}
+
+				$data->{$key}=$device;
+			}
+		}
+	}
+	return $data;
+}
+
+sub get_smart {
+
+=for comment
+arcconf getsmartstats 1
+Controllers found: 2
+
+SMART STATS FOR SATA:
+---------------------
+
+<SmartStats controllerID="0" time="1589396481" deviceName="5405" serialNumber="0D17115B461">
+<PhysicalDriveSmartStats channel="0" id="3" nonSpinning="false" isDescriptionAvailable="true" >
+<Attribute id="0x01" name="Read Error Rate" normalizedCurrent="200" normalizedWorst="200" thresholdValue="51" rawValue="4" Status="OK" />
+<Attribute id="0x03" name="Spin-Up Time in millisecs" normalizedCurrent="173" normalizedWorst="172" thresholdValue="21" rawValue="4341" Status="OK" />
+<Attribute id="0x04" name="Start/Stop Count" normalizedCurrent="100" normalizedWorst="100" thresholdValue="0" rawValue="40" Status="OK" />
+<Attribute id="0x05" name="Reallocated Sectors Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="140" rawValue="0" Status="OK" />
+<Attribute id="0x07" name="Seek Error Rate" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0x09" name="Power-On Hours" normalizedCurrent="54" normalizedWorst="54" thresholdValue="0" rawValue="34241" Status="OK" />
+<Attribute id="0x0A" name="Spin Retry Count" normalizedCurrent="100" normalizedWorst="253" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0x0B" name="Recalibration Retries" normalizedCurrent="100" normalizedWorst="253" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0x0C" name="Power Cycle Count" normalizedCurrent="100" normalizedWorst="100" thresholdValue="0" rawValue="39" Status="OK" />
+<Attribute id="0xC0" name="Power-off Retract Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="38" Status="OK" />
+<Attribute id="0xC1" name="Load/Unload Cycle Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="1" Status="OK" />
+<Attribute id="0xC2" name="Current Internal Temperature" normalizedCurrent="116" normalizedWorst="90" thresholdValue="0" rawValue="31" Status="OK" />
+<Attribute id="0xC4" name="Reallocation Event Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0xC5" name="Current Pending Sector Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0xC6" name="Uncorrectable Sector Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0xC7" name="UltraDMA CRC Error Count" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+<Attribute id="0xC8" name="Multi-Zone Error Rate" normalizedCurrent="200" normalizedWorst="200" thresholdValue="0" rawValue="0" Status="OK" />
+</PhysicalDriveSmartStats>
+...
+</SmartStats>
+
+
+SMART STATS FOR SAS:
+--------------------
+
+<SASSmartStats controllerID="0" time="1589396482" deviceName="5405" serialNumber="0D17115B461">
+</SASSmartStats>
+
+
+Command completed successfully.
+=cut
+
+	my ($controllers,$devices) = @_;
+	my $controller=[];
+	my $data = {};
+	my ($device, $arcconf_output, $name, $current, $worst, $thresh, $raw, $state, $id, $channel, $smart_detail, $smart, $key);
+
+        foreach my $c (@$controllers) {
+                my $controller=[];
+                $arcconf_output = `${ \arcconf } getsmartstats $c`;
+		$channel="undef";
+                for my $line (split /^/, $arcconf_output) {
+                        if($line =~ /^<\s*PhysicalDriveSmartStats/) {
+                                $smart = [];
+				($channel) = $line =~ /channel=\"([0-9]+)/;
+				($device)  = $line =~ /id=\"([0-9]+)/;
+                        }
+			if($line =~ /<\s*Attribute/) {
+				($id)  		= $line =~ /id=\"([0-9xA-F]+)/i;
+				($name)  	= $line =~ /name=\"([^"]+)/i;
+				($current)  	= $line =~ /normalizedCurrent=\"([^"]+)/i;
+				($worst)  	= $line =~ /normalizedWorst=\"([^"]+)/i;
+				($thresh)  	= $line =~ /thresholdValue=\"([^"]+)/i;
+				($raw)  	= $line =~ /rawVAlue=\"([^"]+)/i;
+				($state)  	= $line =~ /Status=\"([^"]+)/i;
+
+				$id    		= hex($id);
+				$smart_detail = {
+					"id"		=> "$id",
+					"name"		=> "$name",
+					"current"	=> "$current",
+					"worst"		=> "$worst",
+					"thresh"	=> "$thresh",
+					"raw"		=> "$raw",
+					"state"		=> "$state"
+				};
+
+				push @$smart,$smart_detail;
+			}
+                        if(
+					$channel ne "undef" 
+				&& 	$channel ne "" 
+				&& 	$line =~ /^<\s*\/\s*PhysicalDriveSmartStats/) {
+
+				my $smart = [ sort {$a->{"id"} <=> $b->{"id"}} @$smart ];
+
+				$key=$c."_".$channel."_".$device;
+				$devices->{$key}->{"smart"}=$smart;
+			}
+                }
+        }
+        return $devices;
+}
+
+sub write_checkmk_smart_data {
+
+	my ($devices) = @_;
+	my ($dev,$output);
+
+	open($output,">",checkmk_output . ".tmp");
+
+	foreach my $dev_key (keys %$devices) {
+		$dev = $devices->{"$dev_key"};
+
+		foreach my $smart (@{$dev->{"smart"}}) {
+
+			($smart->{"name"}) =~ s/ /_/g;
+
+			# rewrite smart attribute names, so they are as check_mk expect them to be
+			#
+			$smart->{"name"} = "Reallocated_Sector_Ct" 	if($smart->{"name"} eq "Reallocated_Sectors_Count");
+			$smart->{"name"} = "Reallocated_Event_Count" 	if($smart->{"name"} eq "Reallocation_Event_Count");
+			$smart->{"name"} = "Current_Pending_Sector" 	if($smart->{"name"} eq "Current_Pending_Sector_Count");
+			$smart->{"name"} = "UDMA_CRC_Error_Count" 	if($smart->{"name"} eq "UltraDMA_CRC_Error_Count");
+			$smart->{"name"} = "Power_On_Hours" 		if($smart->{"name"} eq "Power-On_Hours");
+			$smart->{"name"} = "Spin_Up_Time" 		if($smart->{"name"} eq "Spin-Up_Time_in_millisecs");
+			$smart->{"name"} = "Load_Cycle_Count" 		if($smart->{"name"} eq "Load/Unload_Cycle_Count");
+			$smart->{"name"} = "Temperature_Celsius" 	if($smart->{"name"} eq "Current_Internal_Temperature");
+			$smart->{"name"} = "Raw_Read_Error_Rate" 	if($smart->{"name"} eq "Read_Error_Rate");
+			$smart->{"name"} = "Start_Stop_Count" 		if($smart->{"name"} eq "Start/Stop_Count");
+			$smart->{"name"} = "Multi_Zone_Error_Rate"	if($smart->{"name"} eq "Multi-Zone_Error_Rate");
+
+			($smart->{"name"}) =~ s/ /_/g;
+			
+			printf $output "%-s undef %s %3s %-40s undef %5s %5s %5s   undef  undef    -    %12s\n",
+			 		"Ctrl".$dev->{"controller"}."/" ."Conn".$dev->{"connector"}."/" ."Dev".$dev->{"device"},
+					$dev->{"vendor"}."_".$dev->{"serial"},
+					$smart->{"id"},
+					$smart->{"name"},
+					$smart->{"current"},
+					$smart->{"worst"},
+					$smart->{"thresh"},
+					$smart->{"raw"},
+					;
+				
+
+		}
+	}
+	close($output);
+	move( checkmk_output .".tmp",checkmk_output);
+}
+
+sub smart_value_scan {
+
+	my $controllers = init() or exit(1);
+	my $devices     = get_disks($controllers);
+	   $devices	= get_smart($controllers,$devices);
+	write_checkmk_smart_data($devices);
+}
+
+sub controller_scan {
+
+	my ($line, $controller, $c, $list);
+        $list = [];
+
+	unlink(controllers);
+        system(arcconf." list >".controllers." 2>/dev/null");
+}
+
+sub smart_value_display {
+
+	my $file;
+	if(-f checkmk_output) {
+		open($file,"<",checkmk_output);
+		print() for(<$file>);
+		close($file);
+	}
+}
+
+sub main {
+	my $action = $_[0];
+	if(!$action || $action eq "") {
+		print("\nEmpty action!\n\n");
+		print("Usage: ".basename($0). " { smart_scan | smart_display | controller_scan }\n\n");
+		exit(1);
+	}
+	if($action eq "smart_scan") {
+		smart_value_scan(); 
+	} elsif ($action eq "smart_display") {
+		smart_value_display();
+	} elsif ($action eq "controller_scan") {
+		controller_scan();
+	} else {
+		print("\nInvalid action: $action\n\n");
+		print("Usage: ".basename($0). " { smart_scan | smart_display | controller_scan }\n\n");
+	}
+
+	
+}
+
+main($ARGV[0]);
