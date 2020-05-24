@@ -138,11 +138,13 @@ sub get_disks {
 				$device = {};
 			}
 			if($line =~ /^\s*Reported Channel,Device\(T:L\)\s*:\s+([0-9]+),([0-9]+)/) {
+				# channel/device is the _logical_ numbering of the physical devices per controller
 				$device->{"channel"}=$1;
 				$device->{"device"}=$2;
 			}
 
 			if($line =~ /^\s*Reported Location\s*:\s+Connector ([0-9]+), Device ([0-9]+)/) {
+				# connector/conn_device is the _physical_ numbering of the physical devices per controller
 				$device->{"connector"}=$1;
 				$device->{"conn_device"}=$2;
 			}
