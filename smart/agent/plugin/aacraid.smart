@@ -11,7 +11,7 @@ $ENV{"PATH"}="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin";
 use constant TEMP_DIR	=> "/var/tmp";
 
 use constant {
-	DEBUG 		=> 0,
+	DEBUG 		=> 1,
 	controllers	=> TEMP_DIR."/aacraid_controllers.tmp",
 	arcconf		=> "arcconf",
 	checkmk_output	=> "/dev/shm/aacraid.checkmk.smart.dat"
@@ -137,11 +137,16 @@ sub get_disks {
 			if($line =~ /^\s*Device #[0-9]+/) {
 				$device = {};
 			}
-
-			if($line =~ /^\s*Reported Location\s*:\s+Connector ([0-9]+),\s+Device\s+([0-9]+)/) {
-				$device->{"connector"}=$1;
+			if($line =~ /^\s*Reported Channel,Device\(T:L\)\s*:\s+([0-9]+),([0-9]+)/) {
+				$device->{"channel"}=$1;
 				$device->{"device"}=$2;
 			}
+
+			if($line =~ /^\s*Reported Location\s*:\s+Connector ([0-9]+), Device ([0-9]+)/) {
+				$device->{"connector"}=$1;
+				$device->{"conn_device"}=$2;
+			}
+			
 			if($line =~ /^\s*Model\s+:\s+(.*)/) {
 				$device->{"model"}=$1;
 			}
@@ -157,16 +162,16 @@ sub get_disks {
 			if($line =~ /^\s*Write Cache\s+:\s+(\S+)/) {
 				$device->{"cache"}=$1;
 				$device->{"controller"}=$c;
-				$key=$c."_".$device->{"connector"}."_".$device->{"device"};
+				$key=$c."_".$device->{"channel"}."_".$device->{"device"};
 
 				# workaround for wrong vendor/model values(vendor empty, model contains vendor)
 				# split at first blank char
 				if($device->{"vendor"} eq "") {
-					($device->{"model"}) =~ /(\S+)\s(.*)/;
-					if($1) {
-						$device->{"vendor"}=$1;
-						$device->{"model"}=$2;
-					}
+					my ($a,$b) = ($device->{"model"}) =~ /(\S+)\s(.*)/;
+					if($a) {
+						$device->{"vendor"}=$a;
+						$device->{"model"}=$b;
+					} 
 				}
 
 				$data->{$key}=$device;
@@ -280,7 +285,6 @@ sub write_checkmk_smart_data {
 
 	foreach my $dev_key (keys %$devices) {
 		$dev = $devices->{"$dev_key"};
-
 		foreach my $smart (@{$dev->{"smart"}}) {
 
 			($smart->{"name"}) =~ s/ /_/g;
@@ -300,17 +304,17 @@ sub write_checkmk_smart_data {
 			$smart->{"name"} = "Multi_Zone_Error_Rate"	if($smart->{"name"} eq "Multi-Zone_Error_Rate");
 
 			($smart->{"name"}) =~ s/ /_/g;
-			
+
+
 			printf $output "%-s undef %s %3s %-40s undef %5s %5s %5s   undef  undef    -    %12s\n",
-			 		"Ctrl".$dev->{"controller"}."/" ."Conn".$dev->{"connector"}."/" ."Dev".$dev->{"device"},
-					$dev->{"vendor"}."_".$dev->{"serial"},
+			 		"Ctrl".$dev->{"controller"}."/" ."Conn".$dev->{"connector"}."/" ."Dev".$dev->{"conn_device"}."_".$dev->{"serial"},
+					($dev->{"vendor"}?$dev->{"vendor"}:"")."_".$dev->{"serial"},
 					$smart->{"id"},
 					$smart->{"name"},
 					$smart->{"current"},
 					$smart->{"worst"},
 					$smart->{"thresh"},
-					$smart->{"raw"},
-					;
+					$smart->{"raw"} ;
 				
 
 		}
@@ -323,6 +327,7 @@ sub smart_value_scan {
 
 	my $controllers = init() or exit(1);
 	my $devices     = get_disks($controllers);
+	use Data::Dumper;
 	   $devices	= get_smart($controllers,$devices);
 	write_checkmk_smart_data($devices);
 }
