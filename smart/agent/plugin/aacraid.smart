@@ -143,6 +143,14 @@ sub get_disks {
 				$device->{"device"}=$2;
 			}
 
+			# exception for different output sometimes seen
+			# Reported Location                  : Enclosure 0, Slot 3( Connector Unknown )
+
+			if($line =~ /^\s*Reported Location\s*:\s+Enclosure ([0-9]+), Slot ([0-9]+)/) {
+				$device->{"connector"}=$1;
+				$device->{"conn_device"}=$2;
+			}
+
 			if($line =~ /^\s*Reported Location\s*:\s+Connector ([0-9]+), Device ([0-9]+)/) {
 				# connector/conn_device is the _physical_ numbering of the physical devices per controller
 				$device->{"connector"}=$1;
@@ -173,6 +181,13 @@ sub get_disks {
 					if($a) {
 						$device->{"vendor"}=$a;
 						$device->{"model"}=$b;
+					} 
+				}
+				# workaround for wrong vendor/model values(vendor empty, model starts with ST)
+				# vendor: seagate
+				if($device->{"vendor"} eq "") {
+					if(($device->{"model"}) =~ /^ST/) {
+						$device->{"vendor"}="Seagate";
 					} 
 				}
 
