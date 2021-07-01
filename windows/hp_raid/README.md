@@ -5,12 +5,14 @@ This is a local check for raid controllers for Windows, which can be queried usi
 # Prerequisites
 
 - an installed Check-MK Agent on the Windows System to be monitored
+- ssacli.exe installed from HP Website
 
 # Installation
 
 - create directory C:\program files (x86)\monitoring
 - create directory C:\program files (x86)\monitoring\bin
 - create directory C:\program files (x86)\monitoring\data
+- place place ssacli.exe into the bin directory from above
 - place ssacli_checkmk.pl into the bin directory from above
 - place ssacli_local_wrapper into the "local" directory of the check_mk agent:
 	* up to Check-MK Agent 1.5: C:\program files (x86)\checkmk\local
