@@ -14,7 +14,11 @@ sub ssacli_open {
 
 	my $command= $_[0];
 	my $fh;
-	open($fh,'"' . $ssacli . '"' . " $command|") or mylog("cannot execut ssacli: $!\n");
+	if(! -f "$ssacli") {
+		mylog("Error: program $ssacli does not exit");
+		return;
+	}
+	open($fh,'"' . $ssacli . '"' . " $command|");
 	return $fh;
 
 }
@@ -22,6 +26,8 @@ sub ssacli_open {
 sub get_controllers {
 
 	my $fh = ssacli_open("ctrl all show detail");
+	return unless($fh);
+
 	my ($ctrl, $slot, $c, $controllers, $status, $bbu_status, $cache_status, $write_cache_status);
 
 	while(<$fh>) {
@@ -56,6 +62,7 @@ sub get_ctrl_disks {
 
 	my $ctrl_slot = $_[0];
 	my $fh = ssacli_open("ctrl slot=$ctrl_slot pd all show detail");
+	return unless($fh);
 
 	my ($location, $all_disks, $disk, $size, $serial, $temp, $array, $interface, $status);
 
