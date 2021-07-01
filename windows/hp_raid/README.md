@@ -27,7 +27,7 @@ This is a local check for raid controllers for Windows, which can be queried usi
 		- application path: c:\strawberry\perl\bin\perl.exe
 		- arguments: "C:\program files (x86)\monitoring\bin\ssacli_checkmk.pl"
 		  (the quotes have to be there!)
-	- start the service manually with: net start hpraidcheck"
+	- start the service manually with: "net start hpraidcheck"
 
 - The installation is now finished and you should see your raid status text in the data directory.
 - A log file is also in the data directory in case some errors occur.
