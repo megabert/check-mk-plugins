@@ -1,7 +1,7 @@
 
 use strict;
 
-use constant LOG_ENABLED => 0;
+use constant LOG_ENABLED => 1;
 
 my  $basedir="C:\\Program Files (x86)\\monitoring";
 my  $bindir="$basedir\\bin";
@@ -14,7 +14,7 @@ sub ssacli_open {
 
 	my $command= $_[0];
 	my $fh;
-	open($fh,'"' . $ssacli . '"' . " $command|") or die "cannot execut ssacli: $!\n";
+	open($fh,'"' . $ssacli . '"' . " $command|") or mylog("cannot execut ssacli: $!\n");
 	return $fh;
 
 }
@@ -166,11 +166,13 @@ sub write_file_atomic {
 
 	my ($filename,$data) = @_;
 	my ($fh);
-	open($fh,">","$filename.tmp") or die "can not write to file $filename: $!\n";
-	print $fh $data;
-	close($fh);
-	rename("$filename.tmp","$filename") or die "can not rename file $filename.tmp to $filename: $!\n";
-
+	if(open($fh,">","$filename.tmp")) {
+		print $fh $data;
+		close($fh);
+		rename("$filename.tmp","$filename") or mylog("can not rename file $filename.tmp to $filename: $!\n");
+	} else {
+	 	mylog("can not write to file $filename: $!\n")
+	}
 }
 
 sub main {
