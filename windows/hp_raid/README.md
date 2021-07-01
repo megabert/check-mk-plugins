@@ -5,7 +5,7 @@ This is a local check for raid controllers for Windows, which can be queried usi
 # Prerequisites
 
 - an installed Check-MK Agent on the Windows System to be monitored
-- ssacli.exe installed from HP Website
+- HP Smart Storage Admin CLI(ssacli.exe) installed from HP Website
 
 # Installation
 
