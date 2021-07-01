@@ -1,41 +1,37 @@
 
 use strict;
 
-my $ssacli="C:\\Program Files (x86)\\monitoring\\bin\\ssacli.exe";
-my $outputfile="C:\\Program Files (x86)\\monitoring\\data\\ssacli.txt";
+use constant LOG_ENABLED => 0;
 
-sub ssacli {
-
-	my $command = $_[0];
-	my $data = `"$ssacli" $command`;
-	return $data;
-
-}
+my  $basedir="C:\\Program Files (x86)\\monitoring";
+my  $bindir="$basedir\\bin";
+my  $datadir="$basedir\\data";
+my  $ssacli="$bindir\\ssacli.exe";
+my  $outputfile="$datadir\\ssacli.txt";
+my  $logfile="$datadir\\main.log";
 
 sub ssacli_open {
 
 	my $command= $_[0];
 	my $fh;
-	open($fh,'"' . $ssacli . '"' . " $command|");
+	open($fh,'"' . $ssacli . '"' . " $command|") or die "cannot execut ssacli: $!\n";
 	return $fh;
 
 }
 
 sub get_controllers {
 
-	my $data = ssacli("ctrl all show detail");
+	my $fh = ssacli_open("ctrl all show detail");
 	my ($ctrl, $slot, $c, $controllers, $status, $bbu_status, $cache_status, $write_cache_status);
 
-	foreach $_ ( split("/\n/",	$data) ) {
-		if($_ =~ / in Slot /) { 
-			# delete values when a new controller block starts
-			$ctrl=$slot=$status=$bbu_status=$cache_status=$write_cache_status=undef;
+	while(<$fh>) {
+		if(/(.*) in Slot ([0-9]+)/) { 
+			($ctrl, $slot) 		= ($1, $2);
 		}
-		($ctrl, $slot) 		= /(.*) in Slot ([0-9]+)/;
-		($status) 		= /Controller Status: (.*)/;
-		($bbu_status) 		= /Battery\/Capacitor Status: (.*)/;
-		($cache_status)		= /Cache Status: (.*)/;
-		($write_cache_status)	= /Drive Write Cache: (.*)/;
+		($status) 		= $1 		if(/Controller Status: (.*)/);
+		($bbu_status) 		= $1		if(/Battery\/Capacitor Status: (.*)/);
+		($cache_status)		= $1		if(/Cache Status: (.*)/);
+		($write_cache_status)	= $1		if(/Drive Write Cache: (.*)/);
 
  		if($ctrl && $slot ne "" && $status && $bbu_status && $cache_status && $write_cache_status) {
 
@@ -48,8 +44,10 @@ sub get_controllers {
 				"write_cache_status" 	=> $write_cache_status
 			};
 			push @$controllers, $c;	
+			$ctrl=$slot=$status=$bbu_status=$cache_status=$write_cache_status=undef;
 		}
 	}
+	close($fh);
 	return $controllers;
 
 }
@@ -61,12 +59,9 @@ sub get_ctrl_disks {
 
 	my ($location, $all_disks, $disk, $size, $serial, $temp, $array, $interface, $status);
 
-	while ($_=<$fh> ) {
-		if($_ =~ /physicaldrive (.*)/) { 
-			$location=$1;
-			# delete values when a new controller block starts
-			$disk=$size=$serial=$temp=$interface=undef;
-		}
+	while (<$fh>) {
+
+		$location=$1 if /physicaldrive (.*)/;
 		$array 	= $1 if /Array (.*)/;
 		$status = $1 if /[ \t]+Status: (.*)/;
 		$size 	= $1 if /^[ \t]+Size: (.*)/;
@@ -89,6 +84,7 @@ sub get_ctrl_disks {
 		}
 
 	}
+	close($fh);
 	return $all_disks;
 }
 
@@ -149,15 +145,31 @@ sub output_check_mk_disk_lines {
 	}
 	return $output;
 }
+
+sub mylog {
+	my ($text) = @_;
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+                                                            localtime(time);
+	my ($loghandle);
+
+	# inefficent logging to open and close for every write. but it's only for debugging
+
+	if(LOG_ENABLED) {
+		open($loghandle,">>$logfile");
+		printf("%4d-%02d-%02d %02d:%02d:%02d %s\n",1900+$year,$mon+1,$mday,$hour,$min,$sec,$text);
+		printf $loghandle "%4d-%02d-%02d %02d:%02d:%02d %s\n",1900+$year,$mon+1,$mday,$hour,$min,$sec,$text;
+		close($loghandle);
+	}
+}
+
 sub write_file_atomic {
 
 	my ($filename,$data) = @_;
-	my $fh;
+	my ($fh);
 	open($fh,">","$filename.tmp") or die "can not write to file $filename: $!\n";
 	print $fh $data;
 	close($fh);
 	rename("$filename.tmp","$filename") or die "can not rename file $filename.tmp to $filename: $!\n";
-	print("successfully wrote file: $filename\n");
 
 }
 
