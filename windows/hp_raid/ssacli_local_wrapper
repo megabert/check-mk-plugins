@@ -1,0 +1,9 @@
+@echo off
+
+rem ssacli local check plugin wrapper
+
+set file="c:\Program Files (x86)\monitoring\data\ssacli.txt"
+
+if exist %file% (
+    type %file%
+)

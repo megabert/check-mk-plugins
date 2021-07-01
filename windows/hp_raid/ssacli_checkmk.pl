@@ -1,4 +1,12 @@
 
+#
+#	program:	ssacli_checkmk.pl
+#
+#	purpose:	local check for checkmk on windows to monitor raid controller
+#			which can be checked with ssacli.exe
+#
+#
+
 use strict;
 
 use constant LOG_ENABLED => 1;
