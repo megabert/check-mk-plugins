@@ -44,6 +44,17 @@ OUTPUT_DIR              = "/var/lib/blacklistcheck"
 OUTPUT_FILE_FULL        = OUTPUT_DIR .. "/full"
 OUTPUT_FILE_SHORT       = OUTPUT_DIR .. "/short"
 
+LOGGING_DISABLED        = true
+
+function mylog(msg)
+
+        if(LOGGING_DISABLED) then return        end
+
+        local handle,err = io.open("/tmp/mylog","a")
+        handle:write(os.date("%Y-%m-%d-%H:%M : ")..msg.."\n")
+        handle:close()
+end
+
 function get_process_output(cmd)
 
         local handle,err = io.popen("LC_ALL=C ".. cmd,"r");
@@ -54,11 +65,17 @@ function get_process_output(cmd)
         end
 end
 
-function check_command(cmd) 
-        return os.execute("which "..cmd.." >/dev/null")==0;
+function check_command(cmd)
+        res = os.execute("which "..cmd.." >/dev/null 2>&1")==0;
+        if(res) then
+                mylog("Found command " .. cmd)
+        else
+                mylog("NOT found command " .. cmd)
+        end
+        return res
 end
 
-function find_ipv4_in_ip_output() 
+function find_ipv4_in_ip_output()
 
         local ips = {}
 
@@ -66,14 +83,15 @@ function find_ipv4_in_ip_output()
 
         local text =(get_process_output("/sbin/ip addr show"))
         text:gsub("inet ([0-9][0-9]?[0-9]?%.([0-9][0-9]?[0-9]?)%.[0-9][0-9]?[0-9]?%.[0-9][0-9]?[0-9]?)/%d+",
-                function(ip,b) 
+                function(ip,b)
                         b=tonumber(b)
-                        if (not ( 
-                                        ip:match("^192%.168%.")
+                        if (not (
+                                        ip:match("^192.168%.")
                                 or      ip:match("^127%.")
                                 or      ip:match("^10%.")
                                 or      ( ip:match("^172%.") and ( b >= 16 and b <= 31))
                                 )) then
+                        mylog("found public ip address "..ip)
                         ips[#ips+1]=ip
                         end
                 end)
@@ -97,6 +115,7 @@ function find_ipv4_in_ifconfig_output()
                                 or      ip:match("^10%.")
                                 or      ( ip:match("^172%.") and ( b >= 16 and b <= 31))
                                 )) then
+			mylog("found public ip address "..ip)
                         ips[#ips+1]=ip
                         end
                 end)
@@ -114,12 +133,18 @@ function get_postfix_smtp_bind_ip()
 
         local bind_address = nil
         if(not check_command(CMD["POSTCONF"])) then return end
-        local text = (get_process_output("postconf"))
+	local text = (get_process_output(CMD["POSTCONF"]))
         for line in text:gmatch(".*$") do
                 line:gsub("smtp_bind_address = ([0-9][0-9]?[0-9]?%.([0-9][0-9]?[0-9]?)%.[0-9][0-9]?[0-9]?%.[0-9][0-9]?[0-9]?)",
                 function(ip) bind_address=ip end)
         end
-        if(bind_address) then return {bind_address} end 
+        if(bind_address) then
+                mylog("Found postfix smtp_bind_address "..bind_address)
+                return {bind_address}
+        else
+                mylog("Did not find postfix smtp_bind_address ")
+        end
+
 end
 
 function get_listen_ips_ss()
@@ -133,9 +158,11 @@ function get_listen_ips_ss()
         text:gsub("([0-9%.%*]+):([0-9]+)",
                 function(ip,port) 
                 if(port == "465" or port == "25" or port == "587") then
-                        if(ip=="*") then 
-                                all_ips=true 
+                        if(ip=="*" or ip=="0.0.0.0") then
+                                all_ips=true
+                                mylog("Found postfix smtpd listen address *")
                         else
+                                mylog("Found postfix smtpd listen address "..ip)
                                 ips[#ips+1]=ip
                         end
                 end
@@ -390,6 +417,7 @@ local blacklistcheck_servers_all = {
 'tor.dnsbl.sectoor.de',
 'exitnodes.tor.dnsbl.sectoor.de',
 'bl.score.senderscore.com',
+'score.senderscore.com',
 'singular.ttk.pte.hu',
 'dnsbl.sorbs.net',
 'problems.dnsbl.sorbs.net',
@@ -422,7 +450,7 @@ local blacklistcheck_servers_all = {
 'netbl.spameatingmonkey.net',
 'uribl.spameatingmonkey.net',
 'urired.spameatingmonkey.net',
-'singlebl.spamgrouper.com',
+'netblockbl.spamgrouper.com',
 'netblockbl.spamgrouper.to',
 'bl.spamcannibal.org',
 'dnsbl.spam-champuru.livedoor.com',
