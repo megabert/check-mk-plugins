@@ -10,6 +10,7 @@
 #	Needs:
 #
 #	- perl module Net::DNS::Resolver (Debian/Ubuntu-Package: libnet-dns-perl)
+#       - Important: Use your own resolver. public resolvers will hit the rate limit of senderscore!
 #
 
 use warnings;
